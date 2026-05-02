@@ -1,0 +1,301 @@
+{
+  "descriptive_stats": {
+    "adsorbent_dosage": {
+      "count": 300,
+      "mean": 1.028,
+      "std": 0.5697,
+      "min": 0.1062,
+      "25%": 0.5197,
+      "50%": 1.0263,
+      "75%": 1.5344,
+      "max": 1.9946
+    },
+    "initial_concentration": {
+      "count": 300,
+      "mean": 101.5671,
+      "std": 54.5806,
+      "min": 10.3416,
+      "25%": 53.4956,
+      "50%": 100.3037,
+      "75%": 151.5827,
+      "max": 198.393
+    },
+    "pH": {
+      "count": 300,
+      "mean": 6.1022,
+      "std": 2.2872,
+      "min": 2.0278,
+      "25%": 4.0668,
+      "50%": 6.073,
+      "75%": 7.9664,
+      "max": 9.9992
+    },
+    "temperature": {
+      "count": 300,
+      "mean": 34.8288,
+      "std": 8.366,
+      "min": 20.0205,
+      "25%": 28.0098,
+      "50%": 35.0023,
+      "75%": 41.7797,
+      "max": 49.9872
+    },
+    "contact_time": {
+      "count": 300,
+      "mean": 138.0175,
+      "std": 58.3138,
+      "min": 32.3931,
+      "25%": 90.6909,
+      "50%": 135.0992,
+      "75%": 188.5988,
+      "max": 239.7695
+    },
+    "surface_area": {
+      "count": 300,
+      "mean": 266.1147,
+      "std": 129.4282,
+      "min": 50.1827,
+      "25%": 156.3708,
+      "50%": 270.3382,
+      "75%": 372.2863,
+      "max": 499.9895
+    },
+    "pore_volume": {
+      "count": 300,
+      "mean": 0.7748,
+      "std": 0.3915,
+      "min": 0.1016,
+      "25%": 0.4629,
+      "50%": 0.7436,
+      "75%": 1.1097,
+      "max": 1.4994
+    },
+    "is_modified": {
+      "count": 300,
+      "mean": 0.48,
+      "std": 0.4996,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 1.0,
+      "max": 1.0
+    },
+    "material_type_MOF": {
+      "count": 300,
+      "mean": 0.2267,
+      "std": 0.4187,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 1.0
+    },
+    "material_type_activated_carbon": {
+      "count": 300,
+      "mean": 0.2567,
+      "std": 0.4368,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 1.0,
+      "max": 1.0
+    },
+    "material_type_biochar": {
+      "count": 300,
+      "mean": 0.2333,
+      "std": 0.423,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 1.0
+    },
+    "material_type_chitosan": {
+      "count": 300,
+      "mean": 0.2833,
+      "std": 0.4506,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 1.0,
+      "max": 1.0
+    },
+    "adsorption_capacity": {
+      "count": 300,
+      "mean": 99.3996,
+      "std": 18.3901,
+      "min": 57.6903,
+      "25%": 87.6221,
+      "50%": 99.7901,
+      "75%": 113.1807,
+      "max": 147.8851
+    }
+  },
+  "correlations": [
+    {
+      "var1": "adsorption_capacity",
+      "var2": "surface_area",
+      "correlation": 0.7298
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "is_modified",
+      "correlation": 0.5542
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "pH",
+      "correlation": -0.2057
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "initial_concentration",
+      "correlation": 0.1375
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "material_type_biochar",
+      "correlation": 0.1098
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "pore_volume",
+      "correlation": -0.0728
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "contact_time",
+      "correlation": 0.069
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "material_type_MOF",
+      "correlation": -0.0632
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "temperature",
+      "correlation": -0.0614
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "material_type_activated_carbon",
+      "correlation": -0.0563
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "adsorbent_dosage",
+      "correlation": -0.0486
+    },
+    {
+      "var1": "adsorption_capacity",
+      "var2": "material_type_chitosan",
+      "correlation": 0.0102
+    },
+    {
+      "var1": "material_type_activated_carbon",
+      "var2": "material_type_chitosan",
+      "correlation": -0.3695
+    },
+    {
+      "var1": "material_type_biochar",
+      "var2": "material_type_chitosan",
+      "correlation": -0.3469
+    },
+    {
+      "var1": "material_type_MOF",
+      "var2": "material_type_chitosan",
+      "correlation": -0.3404
+    },
+    {
+      "var1": "material_type_activated_carbon",
+      "var2": "material_type_biochar",
+      "correlation": -0.3242
+    },
+    {
+      "var1": "material_type_MOF",
+      "var2": "material_type_activated_carbon",
+      "correlation": -0.3181
+    },
+    {
+      "var1": "material_type_MOF",
+      "var2": "material_type_biochar",
+      "correlation": -0.2987
+    },
+    {
+      "var1": "temperature",
+      "var2": "is_modified",
+      "correlation": -0.148
+    },
+    {
+      "var1": "surface_area",
+      "var2": "material_type_biochar",
+      "correlation": 0.1285
+    },
+    {
+      "var1": "initial_concentration",
+      "var2": "contact_time",
+      "correlation": 0.1123
+    },
+    {
+      "var1": "initial_concentration",
+      "var2": "is_modified",
+      "correlation": -0.106
+    }
+  ],
+  "material_comparison": {
+    "modified": {
+      "mean": 110.01,
+      "std": 14.9
+    },
+    "unmodified": {
+      "mean": 89.61,
+      "std": 15.67
+    }
+  },
+  "material_stats": {
+    "biochar": {
+      "count": 70,
+      "mean": 103.06
+    },
+    "activated_carbon": {
+      "count": 77,
+      "mean": 97.64
+    },
+    "chitosan": {
+      "count": 85,
+      "mean": 99.7
+    },
+    "MOF": {
+      "count": 68,
+      "mean": 97.25
+    }
+  },
+  "outliers": [
+    {
+      "variable": "adsorbent_dosage",
+      "outliers": 0,
+      "percentage": 0.0
+    },
+    {
+      "variable": "initial_concentration",
+      "outliers": 0,
+      "percentage": 0.0
+    },
+    {
+      "variable": "pH",
+      "outliers": 0,
+      "percentage": 0.0
+    },
+    {
+      "variable": "temperature",
+      "outliers": 0,
+      "percentage": 0.0
+    },
+    {
+      "variable": "contact_time",
+      "outliers": 0,
+      "percentage": 0.0
+    }
+  ]
+}
