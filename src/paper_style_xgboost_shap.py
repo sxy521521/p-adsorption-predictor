@@ -23,6 +23,9 @@ FEATURE_GROUPS = {
     ],
     "Modified / unmodified": lambda columns: ["Modified or unmodified"],
     "Cross-linked / uncross-linked": lambda columns: ["Cross-linked or uncross-linked"],
+    "Cross-linking agent type": lambda columns: [
+        column for column in columns if column.startswith("Cross-linking agent type_")
+    ],
     "Adsorbent dosage (g/L)": lambda columns: ["Adsorbent dosage (g/L) "],
     "Reactor temperature (°C)": lambda columns: ["Reactor temperature (℃)"],
     "Initial P concentration (mg/L)": lambda columns: ["Initial P concentration (mg/L)"],
@@ -87,7 +90,7 @@ def main():
     # 与原文图 6(a) 相近的蓝绿色系，最高贡献变量颜色最深。
     teal_palette = [
         "#0B6266", "#187A7C", "#318F90", "#4FA4A2", "#6BB5B0",
-        "#89C5BE", "#A4D2C9", "#BCDED3", "#D1E8DC", "#E2F1E6",
+        "#89C5BE", "#A4D2C9", "#BCDED3", "#D1E8DC", "#E2F1E6", "#EDF6EB",
     ]
     color_by_feature = dict(zip(importance["feature"], teal_palette))
     bars = ax.barh(

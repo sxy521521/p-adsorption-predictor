@@ -31,6 +31,7 @@ CONTINUOUS_COLS = [
     "BET surface area (m²/g)",
 ]
 MATERIAL_PREFIX = "Modified material type_"
+AGENT_PREFIX = "Cross-linking agent type_"
 
 POPULATION_SIZE = 80
 GENERATIONS = 500
@@ -131,15 +132,19 @@ class XGBoostGAOptimizer:
         self.material_columns = [
             column for column in self.model_columns if column.startswith(MATERIAL_PREFIX)
         ]
+        self.agent_columns = [
+            column for column in self.model_columns if column.startswith(AGENT_PREFIX)
+        ]
         if not self.material_columns:
             raise ValueError("Modified material type columns were not found.")
-        material_index = x[self.material_columns].to_numpy().argmax(axis=1)
-        combinations = pd.DataFrame({
-            STATUS_COL: x[STATUS_COL].to_numpy(),
-            CROSSLINK_COL: x[CROSSLINK_COL].to_numpy(),
-            "material_index": material_index,
-        }).drop_duplicates(ignore_index=True)
-        self.valid_combinations = combinations
+        if not self.agent_columns:
+            raise ValueError("Cross-linking agent type columns were not found.")
+        # 仅保留原始数据中真实出现过的“改性/交联/材料/交联剂”组合，
+        # 避免优化过程虚构类别组合。
+        self.category_columns = self.material_columns + self.agent_columns
+        self.valid_combinations = x[
+            [STATUS_COL, CROSSLINK_COL, *self.category_columns]
+        ].drop_duplicates(ignore_index=True)
         self.column_index = {column: index for index, column in enumerate(self.model_columns)}
 
     def repair(self, population: np.ndarray, fixed_initial_p: float | None) -> np.ndarray:
@@ -166,8 +171,8 @@ class XGBoostGAOptimizer:
         matrix[:, self.column_index[CROSSLINK_COL]] = combinations[CROSSLINK_COL].to_numpy()
         for decision_index, column in enumerate(CONTINUOUS_COLS):
             matrix[:, self.column_index[column]] = population[:, 1 + decision_index]
-        material_indices = combinations["material_index"].to_numpy(dtype=int)
-        matrix[np.arange(len(population)), np.array([self.column_index[column] for column in self.material_columns])[material_indices]] = 1
+        for column in self.category_columns:
+            matrix[:, self.column_index[column]] = combinations[column].to_numpy(dtype=float)
         return pd.DataFrame(matrix, columns=self.model_columns)
 
     def evaluate(self, population: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -250,7 +255,16 @@ class XGBoostGAOptimizer:
         combination = self.valid_combinations.iloc[solution["combination_code"]]
         solution[STATUS_COL] = combination[STATUS_COL]
         solution[CROSSLINK_COL] = combination[CROSSLINK_COL]
-        solution["modified_material_type"] = self.material_columns[int(combination["material_index"])].replace(MATERIAL_PREFIX, "")
+        material_types = [
+            column.replace(MATERIAL_PREFIX, "") for column in self.material_columns
+            if combination[column] == 1
+        ]
+        agent_types = [
+            column.replace(AGENT_PREFIX, "") for column in self.agent_columns
+            if combination[column] == 1
+        ]
+        solution["modified_material_type"] = material_types[0] if material_types else "baseline"
+        solution["cross_linking_agent_type"] = agent_types[0] if agent_types else "0"
         for decision_index, column in enumerate(CONTINUOUS_COLS):
             solution[column.strip()] = float(population[best_index, 1 + decision_index])
         return solution, history

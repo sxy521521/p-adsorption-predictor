@@ -20,13 +20,14 @@
 
 ## 数据集字段说明
 
-本项目使用以下11个字段，与 `需缺失值补充数据_插补结果.xlsx` 保持一致：
+本项目使用以下 12 个字段，与 `需缺失值补充数据_DTR插补结果.xlsx` 保持一致；孔体积与 BET 比表面积的缺失值已使用决策树回归（DTR）补充。
 
 | 字段名 | 说明 | 数据类型 |
 |--------|------|----------|
 | Modified or unmodified | 是否改性 | 0/1 |
 | Modified material type | 材料类型 | biochar/MOF/activated_carbon/chitosan |
 | Cross-linked or uncross-linked | 是否交联 | 0/1 |
+| Cross-linking agent type | 交联剂类型 | 类别编号 |
 | Adsorbent dosage (g/L) | 吸附剂用量 | 数值 |
 | Reactor temperature (℃) | 反应器温度 | 数值 |
 | Initial P concentration (mg/L) | 初始P浓度 | 数值 |
@@ -195,8 +196,8 @@ python src/ga_optimization.py
 
 ### 替换为自己的数据
 
-1. 准备CSV格式数据文件
-2. 确保包含与上述11个字段一致的数据
+1. 准备 Excel 或 CSV 格式数据文件
+2. 确保包含与上述 12 个字段一致的数据
 3. 修改数据文件路径
 4. 重新运行完整流程
 

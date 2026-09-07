@@ -1,25 +1,31 @@
-import pandas as pd
-import numpy as np
+"""Encode the 12-column DTR-imputed source data for machine learning."""
+
 from pathlib import Path
 
-script_dir = Path(__file__).parent.parent
+import pandas as pd
 
-def load_and_preprocess_data(filepath):
-    df = pd.read_csv(filepath, encoding='utf-8-sig')
-    
-    print("=== 原始数据信息 ===")
-    print(f"数据形状: {df.shape}")
-    print(f"\n缺失值统计:\n{df.isnull().sum()}")
-    
-    categorical_cols = ['Modified material type']
-    df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
-    
-    print(f"\n处理后数据形状: {df_encoded.shape}")
-    
-    df_encoded.to_csv(script_dir / 'data/processed/adsorption_data_processed.csv', index=False, encoding='utf-8-sig')
-    
-    return df_encoded
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+CATEGORICAL_COLUMNS = ["Modified material type", "Cross-linking agent type"]
+
+
+def load_and_preprocess_data(filepath: Path) -> pd.DataFrame:
+    if filepath.suffix.lower() == ".xlsx":
+        df = pd.read_excel(filepath)
+    else:
+        df = pd.read_csv(filepath, encoding="utf-8-sig")
+    df.columns = [str(column).replace("\n", "").strip() for column in df.columns]
+    df = df.rename(columns={"Adsorbent dosage (g/L)": "Adsorbent dosage (g/L) "})
+    df["Cross-linking agent type"] = df["Cross-linking agent type"].fillna("None").astype(str)
+
+    encoded = pd.get_dummies(df, columns=CATEGORICAL_COLUMNS, drop_first=True, dtype=int)
+    output = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    encoded.to_csv(output, index=False, encoding="utf-8-sig")
+    print(f"Raw shape: {df.shape}; processed shape: {encoded.shape}")
+    print(f"Saved: {output}")
+    return encoded
+
 
 if __name__ == "__main__":
-    df_processed = load_and_preprocess_data(script_dir / 'data/raw/adsorption_sample_data.csv')
-    print("\n数据预处理完成！")
+    load_and_preprocess_data(PROJECT_DIR / "需缺失值补充数据_DTR插补结果.xlsx")

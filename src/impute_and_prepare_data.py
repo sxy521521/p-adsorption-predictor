@@ -1,9 +1,8 @@
 """Prepare the revised adsorption dataset and impute pore volume and BET area.
 
 The source workbook contains '-' placeholders for missing pore-volume and BET
-values.  The cross-linking-agent field is retained as an auxiliary predictor
-during imputation, but is not added to the final XGBoost feature set so that
-the prediction app keeps its established input schema.
+values. The cross-linking-agent field is retained as an auxiliary predictor
+during imputation and as a model input in the final processed dataset.
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ MODEL_COLUMNS = [
     "Modified or unmodified",
     "Modified material type",
     "Cross-linked or uncross-linked",
+    "Cross-linking agent type",
     "Adsorbent dosage (g/L) ",
     "Reactor temperature (℃)",
     "Initial P concentration (mg/L)",
@@ -158,7 +158,10 @@ def run(workbook: Path) -> None:
 
     completed.to_csv(raw_path, index=False, encoding="utf-8-sig")
     processed = pd.get_dummies(
-        completed, columns=["Modified material type"], drop_first=True, dtype=int
+        completed,
+        columns=["Modified material type", "Cross-linking agent type"],
+        drop_first=True,
+        dtype=int,
     )
     processed.to_csv(processed_path, index=False, encoding="utf-8-sig")
     validation.to_csv(validation_path, index=False)

@@ -35,7 +35,7 @@ def load_model_assets():
 
 
 def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
-    """将网页输入转换成模型训练时使用的 39 列特征。"""
+    """将网页输入转换成与训练模型一致的特征列。"""
     row = pd.DataFrame(np.zeros((1, len(feature_names))), columns=feature_names)
     direct_columns = [
         "Modified or unmodified",
@@ -58,6 +58,12 @@ def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
         if material_column not in row.columns:
             raise ValueError(f"不支持的材料类型：{material_type}")
         row.loc[0, material_column] = 1
+    agent_type = str(values["Cross-linking agent type"])
+    if agent_type != "0":
+        agent_column = f"Cross-linking agent type_{agent_type}"
+        if agent_column not in row.columns:
+            raise ValueError(f"不支持的交联剂类型：{agent_type}")
+        row.loc[0, agent_column] = 1
     return row.loc[:, feature_names]
 
 
@@ -81,6 +87,10 @@ def main():
             format_func=lambda value: "交联" if value == 1 else "未交联",
         )
         material_type = st.selectbox("改性材料类型编号", options=[str(i) for i in range(31)], index=0)
+        crosslink_agent_type = st.selectbox(
+            "交联剂类型编号", options=["0", "1", "2", "3", "4", "None"], index=0,
+            help="0 为基准类型；无交联剂记录时选择 None。",
+        )
 
         st.subheader("反应与材料参数")
         adsorbent_dosage = st.number_input(
@@ -120,6 +130,7 @@ def main():
         "Modified or unmodified": modified,
         "Cross-linked or uncross-linked": crosslinked,
         "Modified material type": material_type,
+        "Cross-linking agent type": crosslink_agent_type,
         "Adsorbent dosage (g/L) ": adsorbent_dosage,
         "Reactor temperature (℃)": reactor_temp,
         "Initial P concentration (mg/L)": initial_p,
