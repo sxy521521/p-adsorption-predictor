@@ -4,16 +4,17 @@ import joblib
 import matplotlib.pyplot as plt
 import shap
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from paper_style import COLORS
 import warnings
 warnings.filterwarnings('ignore')
 
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-Path("results/figures").mkdir(exist_ok=True)
+script_dir = Path(__file__).parent.parent
+fig_dir = script_dir / 'results' / 'figures'
 
 def load_data():
-    df = pd.read_csv('data/processed/adsorption_data_processed.csv')
+    df = pd.read_csv(script_dir / 'data/processed/adsorption_data_processed.csv')
     X = df.drop('P adsorption capacity (mg/g)', axis=1)
     y = df['P adsorption capacity (mg/g)']
     return X, y
@@ -22,7 +23,7 @@ print("Loading data and model...")
 X, y = load_data()
 
 try:
-    model = joblib.load('models/best_model.pkl')
+    model = joblib.load(script_dir / 'models/best_model.pkl')
     print(f"Model loaded: {type(model)}")
 
     print("\nCalculating SHAP values using TreeExplainer...")
@@ -30,19 +31,19 @@ try:
     shap_values = explainer.shap_values(X)
 
     print("\nGenerating SHAP plots...")
-    plt.figure(figsize=(12, 10))
+    plt.figure(figsize=(7.2, 5.4))
     shap.summary_plot(shap_values, X, show=False)
-    plt.title('SHAP Summary Plot - Biochar Adsorption for As(III) and As(V)', fontsize=14)
+    plt.title('SHAP summary', fontsize=11, fontweight='bold', loc='left')
     plt.tight_layout()
-    plt.savefig('results/figures/shap_summary_plot.png', dpi=300, bbox_inches='tight')
+    plt.savefig(fig_dir / 'shap_summary_plot.png', dpi=400, bbox_inches='tight', pad_inches=0.04)
     plt.close()
     print("SHAP Summary Plot saved")
 
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(7.2, 5.2))
     shap.summary_plot(shap_values, X, plot_type="bar", show=False)
-    plt.title('SHAP Feature Importance - Biochar Adsorption', fontsize=14)
+    plt.title('SHAP feature importance', fontsize=11, fontweight='bold', loc='left')
     plt.tight_layout()
-    plt.savefig('results/figures/shap_feature_importance.png', dpi=300, bbox_inches='tight')
+    plt.savefig(fig_dir / 'shap_feature_importance.png', dpi=400, bbox_inches='tight', pad_inches=0.04)
     plt.close()
     print("SHAP Feature Importance saved")
 
@@ -50,7 +51,7 @@ try:
         'feature': X.columns,
         'mean_shap': np.abs(shap_values).mean(axis=0)
     }).sort_values('mean_shap', ascending=False)
-    shap_df.to_csv('results/shap_values.csv', index=False, encoding='utf-8-sig')
+    shap_df.to_csv(script_dir / 'results/shap_values.csv', index=False, encoding='utf-8-sig')
     print("SHAP values saved to CSV")
 
     print("\nTop 10 Important Features:")
