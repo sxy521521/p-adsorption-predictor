@@ -88,8 +88,8 @@ def main():
         )
         material_type = st.selectbox("改性材料类型编号", options=[str(i) for i in range(31)], index=0)
         crosslink_agent_type = st.selectbox(
-            "交联剂类型编号", options=["0", "1", "2", "3", "4", "None"], index=0,
-            help="0 为基准类型；无交联剂记录时选择 None。",
+            "交联剂类型编号", options=["0", "1", "2", "3", "4"], index=0,
+            help="0 为基准类型。",
         )
 
         st.subheader("反应与材料参数")
