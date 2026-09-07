@@ -10,7 +10,8 @@ import shap
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
-MODEL_PATH = PROJECT_DIR / "models" / "best_XGBoost_model.pkl"
+# 与网页和图 5 使用同一份最终 XGBoost 模型，避免特征贡献与网页预测不一致。
+MODEL_PATH = PROJECT_DIR / "models" / "xgboost_icp_model.pkl"
 FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "06_xgboost_shap_importance.png"
 TABLE_PATH = PROJECT_DIR / "results" / "xgboost_shap_feature_importance.csv"
 TARGET = "P adsorption capacity (mg/g)"

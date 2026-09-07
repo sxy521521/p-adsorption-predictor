@@ -52,6 +52,7 @@ results/figures/
 results/*.csv
 !results/xgboost_icp_metrics.csv
 !results/xgboost_shap_feature_importance.csv
+!results/imputation_validation_metrics.csv
 
 # CatBoost
 catboost_info/
