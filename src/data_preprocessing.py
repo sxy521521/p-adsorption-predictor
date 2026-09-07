@@ -17,7 +17,10 @@ def load_and_preprocess_data(filepath: Path) -> pd.DataFrame:
     df.columns = [str(column).replace("\n", "").strip() for column in df.columns]
     df = df.rename(columns={"Adsorbent dosage (g/L)": "Adsorbent dosage (g/L) "})
     # 空白交联剂记录与基准类型统一记为 0，避免生成额外的 None 类别。
-    df["Cross-linking agent type"] = df["Cross-linking agent type"].fillna(0).astype(str)
+    df["Cross-linking agent type"] = (
+        pd.to_numeric(df["Cross-linking agent type"], errors="coerce")
+        .fillna(0).astype(int).astype(str)
+    )
 
     encoded = pd.get_dummies(df, columns=CATEGORICAL_COLUMNS, drop_first=True, dtype=int)
     output = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"

@@ -76,7 +76,10 @@ def load_source(workbook: Path) -> pd.DataFrame:
     for column in NUMERIC_COLUMNS:
         df[column] = pd.to_numeric(df[column], errors="coerce")
     # 空白交联剂记录与基准类型统一记为 0，避免生成额外的 None 类别。
-    df["Cross-linking agent type"] = df["Cross-linking agent type"].fillna(0).astype(str)
+    df["Cross-linking agent type"] = (
+        pd.to_numeric(df["Cross-linking agent type"], errors="coerce")
+        .fillna(0).astype(int).astype(str)
+    )
     return df
 
 
