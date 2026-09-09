@@ -45,7 +45,6 @@ NUMERIC_COLUMNS = [
     "Solution pH",
     "Pore volume (cm³/g)",
     "BET surface area (m²/g)",
-    "P adsorption capacity (mg/g)",
 ]
 
 TARGET_COLUMNS = ["Pore volume (cm³/g)", "BET surface area (m²/g)"]
@@ -87,6 +86,7 @@ def make_imputation_matrix(df: pd.DataFrame) -> pd.DataFrame:
     auxiliary = pd.get_dummies(
         df["Cross-linking agent type"], prefix="Cross-linking agent type", dtype=float
     )
+    # 目标变量不能参与输入特征补充，否则会把结果信息泄漏到输入变量中。
     return pd.concat([df[NUMERIC_COLUMNS].astype(float), auxiliary], axis=1)
 
 

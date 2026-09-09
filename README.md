@@ -1,6 +1,6 @@
 # 机器学习吸附材料研究系统
 
-基于论文《Machine Learning for As(III) and As(V) Adsorption on Diverse Materials》的研究方法复现，采用纯Python实现的数据驱动吸附材料研究平台。
+面向壳聚糖水凝胶磷酸盐吸附研究的数据驱动分析与预测平台。项目使用最新的缺失值补充数据，比较 CatBoost、XGBoost 和 LightGBM，并将调参后的 CatBoost 作为最终预测模型。
 
 ---
 
@@ -10,11 +10,11 @@
 
 ### 核心功能
 
-- **数据生成与预处理**：自动生成模拟数据，支持one-hot编码
-- **探索性数据分析(EDA)**：描述性统计、相关性分析、分组对比
-- **机器学习建模**：线性回归、决策树、随机森林
-- **多目标优化**：遗传算法(GA)实现吸附容量最大化和能耗最小化
-- **可视化输出**：箱线图、小提琴图、相关性热图、帕累托前沿
+- **数据预处理**：基于 DTR 对缺失的孔体积和 BET 比表面积进行补充，保留 12 列原始字段结构
+- **模型比较与调参**：使用 Optuna TPE 和 5 折交叉验证在 80% 开发集上优化三种梯度提升树
+- **不确定性分析**：使用 64% 训练集、16% 校准集和 20% 测试集构建 95% 归纳共形预测区间
+- **解释与优化**：使用 CatBoost 原生 SHAP 分析，并用 NSGA-II 遗传算法兼顾吸附容量和能耗代理
+- **网页预测**：Streamlit 支持材料组合约束下的单条预测和预测区间展示
 
 ---
 
@@ -77,75 +77,45 @@ adsorption_ml_project/
 
 ## 安装依赖
 
-### 方案一：基础环境（纯Python实现）
-
 ```bash
-pip install Pillow
-```
-
-### 方案二：完整环境（推荐）
-
-```bash
-pip install pandas numpy scikit-learn matplotlib seaborn
-pip install catboost xgboost lightgbm deap joblib openpyxl
+pip install -r requirements.txt
 ```
 
 ---
 
 ## 使用步骤
 
-### 步骤1：生成模拟数据
+### 步骤1：准备处理后数据
 
 ```bash
 cd adsorption_ml_project
-python src/create_sample_data.py
-```
-
-**输出**：`data/raw/adsorption_sample_data.csv`
-
-### 步骤2：数据预处理
-
-```bash
-python src/data_preprocessing.py
+python src/impute_and_prepare_data.py
 ```
 
 **输出**：`data/processed/adsorption_data_processed.csv`
 
-**说明**：对分类变量（Modified material type）进行one-hot编码
-
-### 步骤3：探索性数据分析
-
-```bash
-python src/eda_analysis.py
-```
-
-**输出**：
-- `results/figures/01_boxplot.png` - 箱线图
-- `results/figures/02_violinplot.png` - 小提琴图
-- `results/figures/03_correlation_heatmap.png` - 相关性热图
-- `results/figures/04_pairplot.png` - 散点图矩阵
-- `results/eda_results.json` - EDA统计结果
-
-### 步骤4：模型训练
+### 步骤2：训练与比较模型
 
 ```bash
 python src/model_training.py
 ```
 
-**输出**：
-- `models/model_info.json` - 最佳模型信息
-- `results/feature_importance.json` - 特征重要性
+**输出**：三种模型、模型指标和最佳模型文件。
 
-**训练的模型**：线性回归、决策树、随机森林
-
-### 步骤5：遗传算法优化
+### 步骤3：生成论文图
 
 ```bash
-python src/ga_optimization.py
+python src/paper_style_model_scatter.py
+python src/paper_style_xgboost_conformal.py
+python src/paper_style_xgboost_shap.py
+python src/xgboost_multiobjective_ga.py
 ```
 
-**输出**：
-- `results/pareto_optimal_solutions.csv` - 帕累托最优解
+### 步骤4：启动网页
+
+```bash
+streamlit run app.py
+```
 
 **优化目标**：
 - 最大化 P adsorption capacity (mg/g)
@@ -157,11 +127,7 @@ python src/ga_optimization.py
 
 ### 特征重要性说明
 
-与P吸附容量强相关的特征：
-1. **BET surface area (m²/g)**：比表面积越大，吸附容量越高
-2. **Modified or unmodified**：改性材料通常具有更高吸附容量
-3. **Solution pH**：pH对吸附效果有显著影响
-4. **Initial P concentration (mg/L)**：初始浓度影响吸附平衡
+当前 CatBoost 模型的 SHAP 结果显示，初始 P 浓度、改性材料类型、改性状态、吸附剂投加量和溶液 pH 是贡献较高的变量。该排序用于解释当前数据集中的模型预测，不等同于单变量因果效应。
 
 ---
 
@@ -215,9 +181,9 @@ python src/ga_optimization.py
 
 | 项目 | 规格 |
 |------|------|
-| 编程语言 | Python 3.6+ |
-| 核心算法 | 线性回归、决策树、随机森林、遗传算法 |
-| 数据规模 | 200-1000样本，5-15个变量 |
+| 编程语言 | Python 3.10+ |
+| 核心算法 | CatBoost、XGBoost、LightGBM、Optuna、归纳共形预测、NSGA-II |
+| 数据规模 | 1233 个样本，11 个输入变量 |
 | 输出格式 | CSV、JSON、PNG |
 
 ---

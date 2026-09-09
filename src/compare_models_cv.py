@@ -1,5 +1,6 @@
 """用统一的 5 折交叉验证比较多种回归模型。"""
 from pathlib import Path
+import json
 import warnings
 
 import numpy as np
@@ -38,27 +39,31 @@ def build_models():
     }
     try:
         import catboost as cb
+        with open(PROJECT_DIR / "models" / "catboost_best_params.json", encoding="utf-8") as file:
+            cat_parameters = json.load(file)["parameters"]
         models["CatBoost"] = cb.CatBoostRegressor(
-            iterations=400, learning_rate=0.05, depth=6,
             loss_function="RMSE", verbose=False, random_seed=42,
+            allow_writing_files=False, thread_count=2, **cat_parameters,
         )
     except Exception as exc:
         print(f"跳过 CatBoost: {exc}")
     try:
         import xgboost as xgb
+        with open(PROJECT_DIR / "models" / "xgboost_best_params.json", encoding="utf-8") as file:
+            xgb_parameters = json.load(file)["parameters"]
         models["XGBoost"] = xgb.XGBRegressor(
-            n_estimators=400, learning_rate=0.05, max_depth=6,
-            subsample=0.9, colsample_bytree=0.9, objective="reg:squarederror",
-            random_state=42, n_jobs=1,
+            objective="reg:squarederror", random_state=42, n_jobs=1,
+            **xgb_parameters,
         )
     except Exception as exc:
         print(f"跳过 XGBoost: {exc}")
     try:
         import lightgbm as lgb
+        with open(PROJECT_DIR / "models" / "lightgbm_best_params.json", encoding="utf-8") as file:
+            lgb_parameters = json.load(file)["parameters"]
         models["LightGBM"] = lgb.LGBMRegressor(
-            n_estimators=400, learning_rate=0.05, max_depth=6,
-            num_leaves=31, subsample=0.9, colsample_bytree=0.9,
-            random_state=42, n_jobs=1, verbosity=-1,
+            objective="regression", random_state=42, n_jobs=2, verbosity=-1,
+            **lgb_parameters,
         )
     except Exception as exc:
         print(f"跳过 LightGBM: {exc}")

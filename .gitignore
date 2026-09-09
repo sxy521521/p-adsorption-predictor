@@ -46,12 +46,15 @@ data/processed/
 models/*.pkl
 models/*.joblib
 !models/xgboost_icp_model.pkl
+!models/catboost_icp_model.pkl
 
 # Results
 results/figures/
 results/*.csv
 !results/xgboost_icp_metrics.csv
 !results/xgboost_shap_feature_importance.csv
+!results/catboost_icp_metrics.csv
+!results/catboost_shap_feature_importance.csv
 !results/imputation_validation_metrics.csv
 
 # CatBoost

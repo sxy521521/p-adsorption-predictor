@@ -1,9 +1,14 @@
 import pandas as pd
 import numpy as np
 import joblib
+import json
 import matplotlib.pyplot as plt
 import seaborn as sns
-import shap
+# SHAP只在显式调用SHAP绘图函数时需要，避免基础模型训练因可选依赖缺失而中断。
+try:
+    import shap
+except Exception:
+    shap = None
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import catboost as cb
@@ -29,6 +34,11 @@ from paper_style import COLORS, style_axis
 script_dir = Path(__file__).parent.parent
 Path(script_dir / "models").mkdir(exist_ok=True)
 
+def load_optimized_parameters(model_name):
+    """Load parameters frozen after development-set Bayesian optimization."""
+    with open(script_dir / 'models' / f'{model_name.lower()}_best_params.json', encoding='utf-8') as file:
+        return json.load(file)['parameters']
+
 def load_data():
     df = pd.read_csv(script_dir / 'data/processed/adsorption_data_processed.csv')
     X = df.drop('P adsorption capacity (mg/g)', axis=1)
@@ -39,40 +49,39 @@ def train_models(X_train, X_test, y_train, y_test):
     models = {}
     
     print("\n=== 训练 CatBoost ===")
+    cat_parameters = load_optimized_parameters('CatBoost')
     cat_model = cb.CatBoostRegressor(
-        iterations=500,
-        learning_rate=0.05,
-        depth=6,
         verbose=100,
         random_state=42,
-        early_stopping_rounds=50
+        allow_writing_files=False,
+        thread_count=2,
+        **cat_parameters,
     )
-    cat_model.fit(X_train, y_train, eval_set=(X_test, y_test))
+    cat_model.fit(X_train, y_train)
     models['CatBoost'] = cat_model
     
     if xgb is not None:
         print("\n=== 训练 XGBoost ===")
+        xgb_parameters = load_optimized_parameters('XGBoost')
         xgb_model = xgb.XGBRegressor(
-            n_estimators=500,
-            learning_rate=0.05,
-            max_depth=6,
+            objective='reg:squarederror',
             random_state=42,
-            early_stopping_rounds=50
+            n_jobs=-1,
+            **xgb_parameters,
         )
-        xgb_model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=100)
+        xgb_model.fit(X_train, y_train, verbose=100)
         models['XGBoost'] = xgb_model
 
     if lgb is not None:
         print("\n=== 训练 LightGBM ===")
+        lgb_parameters = load_optimized_parameters('LightGBM')
         lgb_model = lgb.LGBMRegressor(
-            n_estimators=500,
-            learning_rate=0.05,
-            max_depth=6,
             random_state=42,
-            early_stopping_rounds=50,
-            verbose=100
+            n_jobs=2,
+            verbosity=-1,
+            **lgb_parameters,
         )
-        lgb_model.fit(X_train, y_train, eval_set=[(X_test, y_test)])
+        lgb_model.fit(X_train, y_train)
         models['LightGBM'] = lgb_model
     
     return models
@@ -179,6 +188,8 @@ def plot_model_uncertainty(model, X_train, X_test, y_train, y_test, model_name):
 def plot_shap_analysis(models, X_train, model_name):
     fig_dir = script_dir / 'results' / 'figures'
     
+    if shap is None:
+        raise ImportError("运行SHAP分析前请安装 shap 依赖。")
     model = models[model_name]
     
     print(f"\n=== SHAP Analysis for {model_name} ===")
@@ -233,9 +244,8 @@ def main():
     
     plot_joint_scatter(models, X_train, X_test, y_train, y_test)
     
-    print("\n=== 生成模型不确定性图 ===")
-    for name, model in models.items():
-        plot_model_uncertainty(model, X_train, X_test, y_train, y_test, name)
+    # 不再生成基于残差标准差的“95%预测区间”图。
+    # 项目中的不确定性评估统一由 paper_style_xgboost_conformal.py 的ICP流程完成。
     
     results = []
     for name, model in models.items():

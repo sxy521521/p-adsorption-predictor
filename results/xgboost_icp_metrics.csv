@@ -3,8 +3,8 @@ confidence_level,0.95
 training_samples,788.0
 calibration_samples,198.0
 test_samples,247.0
-conformal_residual_quantile_mg_g,28.890585327148436
-empirical_test_coverage,0.9635627530364372
-mean_prediction_interval_width_mg_g,57.78117752075195
-test_r2,0.8961087393997165
-test_rmse_mg_g,11.565920565616139
+conformal_residual_quantile_mg_g,28.039321899414062
+empirical_test_coverage,0.9838056680161943
+mean_prediction_interval_width_mg_g,56.07863998413086
+test_r2,0.9063130512402989
+test_rmse_mg_g,10.983234209457763

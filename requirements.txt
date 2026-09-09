@@ -17,3 +17,4 @@ streamlit>=1.20.0
 Pillow>=9.0.0
 plotly>=5.0.0
 python-ternary>=1.0.8
+optuna>=5.0.0

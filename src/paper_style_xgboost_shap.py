@@ -1,19 +1,24 @@
-"""按参考论文图 6 的形式绘制 XGBoost 的 SHAP 特征贡献图。"""
+"""按参考论文图 6 的形式绘制 CatBoost 的 SHAP 特征贡献图。"""
 from pathlib import Path
 
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import shap
+try:
+    import shap
+except Exception:
+    shap = None
+from catboost import Pool
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
-# 与网页和图 5 使用同一份最终 XGBoost 模型，避免特征贡献与网页预测不一致。
-MODEL_PATH = PROJECT_DIR / "models" / "xgboost_icp_model.pkl"
-FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "06_xgboost_shap_importance.png"
-TABLE_PATH = PROJECT_DIR / "results" / "xgboost_shap_feature_importance.csv"
+# 图 6 与图 7 使用主模型训练脚本保存的同一份 CatBoost 模型。
+# 图 5 为独立的归纳式共形预测流程，使用独立的 64%/16%/20% 数据划分。
+MODEL_PATH = PROJECT_DIR / "models" / "best_CatBoost_model.pkl"
+FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "06_catboost_shap_importance.png"
+TABLE_PATH = PROJECT_DIR / "results" / "catboost_shap_feature_importance.csv"
 TARGET = "P adsorption capacity (mg/g)"
 
 
@@ -50,10 +55,20 @@ def main():
     x = df.drop(columns=[TARGET])
     model = joblib.load(MODEL_PATH)
     # 与保存模型时的特征顺序严格一致。
-    x = x.loc[:, model.feature_names_in_]
+    model_features = getattr(model, "feature_names_in_", None)
+    if model_features is None:
+        model_features = model.feature_names_
+    x = x.loc[:, model_features]
 
-    explainer = shap.TreeExplainer(model)
-    shap_values = np.asarray(explainer.shap_values(x))
+    if shap is not None:
+        explainer = shap.TreeExplainer(model)
+        shap_values = np.asarray(explainer.shap_values(x))
+    else:
+        # CatBoost 原生 ShapValues 在未安装 shap 时提供同等的全局分解。
+        native_values = model.get_feature_importance(
+            Pool(x, feature_names=list(x.columns)), type="ShapValues"
+        )
+        shap_values = np.asarray(native_values)[:, :-1]
     mean_abs_shap = pd.Series(np.abs(shap_values).mean(axis=0), index=x.columns)
 
     group_rows = []

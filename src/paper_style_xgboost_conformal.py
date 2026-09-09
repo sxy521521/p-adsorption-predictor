@@ -1,9 +1,10 @@
-"""使用归纳共形预测（ICP）为 XGBoost 的 P 吸附容量预测生成 95% 区间图。
+"""使用归纳共形预测（ICP）为 CatBoost 的 P 吸附容量预测生成 95% 区间图。
 
 流程：训练集拟合模型，独立校准集确定残差分位数，测试集只用于最终评估与绘图。
 """
 from math import ceil
 from pathlib import Path
+import json
 
 import joblib
 import matplotlib.pyplot as plt
@@ -11,15 +12,16 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
-from xgboost import XGBRegressor
+from catboost import CatBoostRegressor
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
-MODEL_PATH = PROJECT_DIR / "models" / "xgboost_icp_model.pkl"
-FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "05_xgboost_conformal_prediction_interval.png"
-PREDICTION_PATH = PROJECT_DIR / "results" / "xgboost_icp_test_predictions.csv"
-METRICS_PATH = PROJECT_DIR / "results" / "xgboost_icp_metrics.csv"
+MODEL_PATH = PROJECT_DIR / "models" / "catboost_icp_model.pkl"
+PARAMETER_PATH = PROJECT_DIR / "models" / "catboost_best_params.json"
+FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "05_catboost_conformal_prediction_interval.png"
+PREDICTION_PATH = PROJECT_DIR / "results" / "catboost_icp_test_predictions.csv"
+METRICS_PATH = PROJECT_DIR / "results" / "catboost_icp_metrics.csv"
 
 TARGET = "P adsorption capacity (mg/g)"
 CONFIDENCE_LEVEL = 0.95
@@ -60,14 +62,12 @@ def main():
         random_state=RANDOM_STATE,
     )
 
-    # 使用项目中已选定 XGBoost 的超参数，冻结后仅在训练集拟合。
-    model = XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=6,
-        objective="reg:squarederror",
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
+    # 使用在独立开发集内经贝叶斯优化后冻结的 CatBoost 参数，仅在训练子集拟合。
+    with PARAMETER_PATH.open(encoding="utf-8") as file:
+        catboost_parameters = json.load(file)["parameters"]
+    model = CatBoostRegressor(
+        loss_function="RMSE", random_seed=RANDOM_STATE, thread_count=2,
+        allow_writing_files=False, verbose=False, **catboost_parameters,
     )
     model.fit(x_train, y_train)
 
@@ -141,7 +141,7 @@ def main():
     prediction_table = pd.DataFrame({
         "test_sample_rank": sample_rank,
         "observed_p_mg_g": observed_sorted,
-        "xgboost_prediction_mg_g": test_prediction[sorted_index],
+        "catboost_prediction_mg_g": test_prediction[sorted_index],
         "lower_95_prediction_bound_mg_g": lower_sorted,
         "upper_95_prediction_bound_mg_g": upper_sorted,
         "within_95_prediction_interval": covered[sorted_index],

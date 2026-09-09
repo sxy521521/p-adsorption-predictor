@@ -1,0 +1,17 @@
+{
+  "selection_method": "Optuna TPE Bayesian optimization; 5-fold CV on the 80% development set; objective = mean CV RMSE",
+  "n_trials": 60,
+  "random_state": 42,
+  "best_cv_rmse": 12.154913058116668,
+  "best_cv_r2": 0.890070758625698,
+  "parameters": {
+    "n_estimators": 600,
+    "learning_rate": 0.051867705228005184,
+    "max_depth": 5,
+    "min_child_weight": 3,
+    "subsample": 0.8676307811457116,
+    "colsample_bytree": 0.710675350715737,
+    "reg_alpha": 0.44969625480542524,
+    "reg_lambda": 0.863188882132185
+  }
+}

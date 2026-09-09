@@ -10,9 +10,9 @@ import streamlit as st
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
-MODEL_PATH = PROJECT_DIR / "models" / "xgboost_icp_model.pkl"
-ICP_METRICS_PATH = PROJECT_DIR / "results" / "xgboost_icp_metrics.csv"
-SHAP_PATH = PROJECT_DIR / "results" / "xgboost_shap_feature_importance.csv"
+MODEL_PATH = PROJECT_DIR / "models" / "catboost_icp_model.pkl"
+ICP_METRICS_PATH = PROJECT_DIR / "results" / "catboost_icp_metrics.csv"
+SHAP_PATH = PROJECT_DIR / "results" / "catboost_shap_feature_importance.csv"
 TARGET = "P adsorption capacity (mg/g)"
 
 
@@ -28,10 +28,29 @@ st.set_page_config(
 def load_model_assets():
     model = joblib.load(MODEL_PATH)
     processed = pd.read_csv(DATA_PATH)
-    feature_names = list(model.feature_names_in_)
+    feature_names = getattr(model, "feature_names_in_", None)
+    if feature_names is None:
+        feature_names = model.feature_names_
+    feature_names = list(feature_names)
     metrics = pd.read_csv(ICP_METRICS_PATH).set_index("metric")["value"]
     importance = pd.read_csv(SHAP_PATH)
-    return model, processed, feature_names, metrics, importance
+    material_columns = [column for column in feature_names if column.startswith("Modified material type_")]
+    agent_columns = [column for column in feature_names if column.startswith("Cross-linking agent type_")]
+
+    def category_code(frame, columns, prefix):
+        codes = pd.Series("0", index=frame.index, dtype="object")
+        for column in columns:
+            codes.loc[frame[column].eq(1)] = column.removeprefix(prefix)
+        return codes
+
+    # Only category combinations that occur in the training data may be entered.
+    profiles = pd.DataFrame({
+        "modified": processed["Modified or unmodified"].astype(int),
+        "material_type": category_code(processed, material_columns, "Modified material type_"),
+        "crosslinked": processed["Cross-linked or uncross-linked"].astype(int),
+        "agent_type": category_code(processed, agent_columns, "Cross-linking agent type_"),
+    }).drop_duplicates(ignore_index=True)
+    return model, processed, feature_names, metrics, importance, profiles
 
 
 def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
@@ -68,28 +87,41 @@ def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
 
 
 def main():
-    model, processed, feature_names, metrics, importance = load_model_assets()
+    model, processed, feature_names, metrics, importance, profiles = load_model_assets()
     numeric_defaults = processed.median(numeric_only=True)
 
     st.title("P 吸附容量预测平台")
-    st.caption("基于 XGBoost 与归纳共形预测的研究辅助工具")
+    st.caption("基于 CatBoost 与归纳共形预测的研究辅助工具")
     st.info("输入材料与反应条件后，系统将输出预测 P 吸附容量及 95% 预测区间。结果用于研究筛选，仍需实验验证。")
 
     with st.sidebar:
         st.header("输入参数")
         st.subheader("材料信息")
         modified = st.selectbox(
-            "材料状态", options=[0, 1],
+            "材料状态", options=sorted(profiles["modified"].unique()),
             format_func=lambda value: "改性" if value == 1 else "未改性",
         )
+        material_options = sorted(
+            profiles.loc[profiles["modified"].eq(modified), "material_type"].unique(),
+            key=int,
+        )
+        material_type = st.selectbox("改性材料类型编号", options=material_options)
+        profiles_after_material = profiles.loc[
+            profiles["modified"].eq(modified) & profiles["material_type"].eq(material_type)
+        ]
         crosslinked = st.selectbox(
-            "交联状态", options=[0, 1],
+            "交联状态", options=sorted(profiles_after_material["crosslinked"].unique()),
             format_func=lambda value: "交联" if value == 1 else "未交联",
         )
-        material_type = st.selectbox("改性材料类型编号", options=[str(i) for i in range(31)], index=0)
+        agent_options = sorted(
+            profiles_after_material.loc[
+                profiles_after_material["crosslinked"].eq(crosslinked), "agent_type"
+            ].unique(),
+            key=int,
+        )
         crosslink_agent_type = st.selectbox(
-            "交联剂类型编号", options=["0", "1", "2", "3", "4"], index=0,
-            help="0 为基准类型。",
+            "交联剂类型编号", options=agent_options,
+            help="选项仅保留训练数据中出现过的材料与交联组合。",
         )
 
         st.subheader("反应与材料参数")
@@ -181,7 +213,7 @@ def main():
         st.subheader("模型与使用说明")
         st.markdown(
             """
-            - **预测模型**：XGBoost 回归模型
+            - **预测模型**：CatBoost 回归模型
             - **预测目标**：P 吸附容量（mg/g）
             - **不确定性评估**：95% 归纳共形预测区间
             - **初始 P 浓度范围**：0.1–500 mg/L

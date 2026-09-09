@@ -41,14 +41,14 @@ def draw_box(ax, values, color, label):
     style_axis(ax)
 
 
-def draw_target_violin(ax, df):
+def draw_status_violin(ax, df, column, labels, colors, xlabel):
     target = "P adsorption capacity (mg/g)"
     groups = [
-        df.loc[df["Modified or unmodified"] == 0, target].dropna(),
-        df.loc[df["Modified or unmodified"] == 1, target].dropna(),
+        df.loc[df[column] == 0, target].dropna(),
+        df.loc[df[column] == 1, target].dropna(),
     ]
     parts = ax.violinplot(groups, positions=[1, 2], widths=0.72, showextrema=False)
-    for body, color in zip(parts["bodies"], ["#C44E52", "#64B5CD"]):
+    for body, color in zip(parts["bodies"], colors):
         body.set_facecolor(color)
         body.set_edgecolor("black")
         body.set_linewidth(0.6)
@@ -56,9 +56,9 @@ def draw_target_violin(ax, df):
     for x, values in zip([1, 2], groups):
         ax.plot([x - 0.16, x + 0.16], [values.median(), values.median()], color="black", linewidth=1.0)
     ax.set_xticks([1, 2])
-    ax.set_xticklabels(["Unmodified", "Modified"], fontsize=7)
+    ax.set_xticklabels(labels, fontsize=7)
     ax.set_ylabel("P adsorption capacity\n(mg/g)", fontsize=8)
-    ax.set_xlabel("Material condition", fontsize=8)
+    ax.set_xlabel(xlabel, fontsize=8)
     style_axis(ax)
 
 
@@ -75,14 +75,21 @@ def main():
         ("BET surface area (m²/g)", "BET surface area\n(m²/g)"),
     ]
     plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["Arial", "DejaVu Sans", "SimHei"], "axes.unicode_minus": False})
-    # 参考论文中的近方形子图布局，避免 4×2 排列被拉成宽扁形。
-    fig, axes = plt.subplots(4, 2, figsize=(8.6, 16.4))
+    # 3×3 等尺寸面板：连续变量、改性状态和交联状态各自独立呈现。
+    fig, axes = plt.subplots(3, 3, figsize=(12.3, 12.3))
     axes = axes.ravel()
     for ax in axes:
         ax.set_box_aspect(1)
     for i, (column, label) in enumerate(variables):
         draw_box(axes[i], df[column], VARIABLE_COLORS[i], label)
-    draw_target_violin(axes[7], df)
+    draw_status_violin(
+        axes[7], df, "Modified or unmodified", ["Unmodified", "Modified"],
+        ["#C44E52", "#64B5CD"], "Material condition",
+    )
+    draw_status_violin(
+        axes[8], df, "Cross-linked or uncross-linked", ["Uncross-linked", "Cross-linked"],
+        ["#E07A5F", "#55A868"], "Cross-linking condition",
+    )
     legend = [
         Patch(facecolor=VARIABLE_COLORS[0], edgecolor="black", label="25%-75%"),
         Line2D([0], [0], marker="^", color="white", markerfacecolor="black", markersize=5, label="Outlier"),
@@ -102,7 +109,7 @@ def main():
     )
     fig.suptitle("Distribution of input variables and adsorption capacity", fontsize=12, fontweight="bold", y=0.999)
     fig.text(0.02, 0.006, "Each panel uses its own y-axis scale because the variables have different units.", fontsize=7.5, color="#555555")
-    fig.tight_layout(rect=[0.02, 0.025, 0.98, 0.955], h_pad=1.5, w_pad=1.2)
+    fig.tight_layout(rect=[0.02, 0.025, 0.98, 0.955], h_pad=1.8, w_pad=1.5)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUTPUT_PATH, dpi=400, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)

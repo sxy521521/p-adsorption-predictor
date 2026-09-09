@@ -9,8 +9,8 @@ import pandas as pd
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
-MODEL_PATH = PROJECT_DIR / "models" / "best_XGBoost_model.pkl"
-FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "07_xgboost_multiobjective_ga.png"
+MODEL_PATH = PROJECT_DIR / "models" / "best_CatBoost_model.pkl"
+FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "07_catboost_multiobjective_ga.png"
 SUMMARY_PATH = PROJECT_DIR / "results" / "ga_optimization_summary.csv"
 CONVERGENCE_PATH = PROJECT_DIR / "results" / "ga_optimization_convergence.csv"
 SOLUTIONS_PATH = PROJECT_DIR / "results" / "ga_optimization_solutions.csv"
@@ -111,13 +111,16 @@ def style_axis(ax):
     ax.tick_params(labelsize=8.2, width=0.7, length=3, color="#303030")
 
 
-class XGBoostGAOptimizer:
-    """在实测边界内，以 NSGA-II 同时优化预测 P 吸附量与温度-时间能耗。"""
+class CatBoostGAOptimizer:
+    """在实测边界内，以 NSGA-II 同时优化预测 P 吸附量与相对能耗代理值。"""
 
     def __init__(self, x: pd.DataFrame, y: pd.Series, model):
         self.x = x
         self.model = model
-        self.model_columns = list(model.feature_names_in_)
+        model_features = getattr(model, "feature_names_in_", None)
+        if model_features is None:
+            model_features = model.feature_names_
+        self.model_columns = list(model_features)
         self.continuous_bounds = np.array([
             [float(x[column].min()), float(x[column].max())] for column in CONTINUOUS_COLS
         ])
@@ -191,7 +194,8 @@ class XGBoostGAOptimizer:
         energy_proxy = temperature_norm * time_norm
         # NSGA-II 的两个最小化目标：最大 P 吸附量（取负）与最小能耗代理值。
         objectives = np.column_stack([-normalised_prediction, energy_proxy])
-        # 与原文 3.4 的组合目标一致，仅用于展示每代最优进展及选择折衷解。
+        # 仅用于展示每代最优进展及从 Pareto 候选中选择等权折衷解，
+        # 不替代 NSGA-II 的两个独立优化目标。
         composite_objective = -normalised_prediction + energy_proxy
         return prediction, objectives, composite_objective
 
@@ -275,8 +279,11 @@ def main():
     x = df.drop(columns=[TARGET])
     y = df[TARGET]
     model = joblib.load(MODEL_PATH)
-    x = x.loc[:, model.feature_names_in_]
-    optimizer = XGBoostGAOptimizer(x, y, model)
+    model_features = getattr(model, "feature_names_in_", None)
+    if model_features is None:
+        model_features = model.feature_names_
+    x = x.loc[:, model_features]
+    optimizer = CatBoostGAOptimizer(x, y, model)
 
     initial_p_values = x.loc[
         x[INITIAL_P_COL] <= INITIAL_P_OPTIMISATION_MAX, INITIAL_P_COL
