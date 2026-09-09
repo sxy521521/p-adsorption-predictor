@@ -16,6 +16,8 @@
 - **解释与优化**：使用 CatBoost 原生 SHAP 分析，并用 NSGA-II 遗传算法兼顾吸附容量和能耗代理
 - **网页预测**：Streamlit 支持材料组合约束下的单条预测和预测区间展示
 
+说明：`best_CatBoost_model.pkl`用于重新运行NSGA-II多目标优化；`catboost_icp_model.pkl`用于网页预测和归纳共形预测区间，两者分别服务于优化复现和不确定性评估。
+
 ---
 
 ## 数据集字段说明

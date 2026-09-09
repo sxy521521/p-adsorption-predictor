@@ -47,6 +47,7 @@ models/*.pkl
 models/*.joblib
 !models/xgboost_icp_model.pkl
 !models/catboost_icp_model.pkl
+!models/best_CatBoost_model.pkl
 
 # Results
 results/figures/
