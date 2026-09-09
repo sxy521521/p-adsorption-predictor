@@ -1,6 +1,6 @@
 """使用归纳共形预测（ICP）为 CatBoost 的 P 吸附容量预测生成 95% 区间图。
 
-流程：训练集拟合模型，独立校准集确定残差分位数，测试集只用于最终评估与绘图。
+文件名沿用历史命名，实际流程使用CatBoost：训练集拟合模型，独立校准集确定残差分位数，测试集用于最终评估与绘图。
 """
 from math import ceil
 from pathlib import Path

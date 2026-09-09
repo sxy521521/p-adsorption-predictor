@@ -38,6 +38,8 @@ env/
 
 # Data
 data/raw/
+!data/raw/
+!data/raw/adsorption_sample_data.csv
 data/processed/
 !data/processed/
 !data/processed/adsorption_data_processed.csv
@@ -45,15 +47,27 @@ data/processed/
 # Models
 models/*.pkl
 models/*.joblib
-!models/xgboost_icp_model.pkl
 !models/catboost_icp_model.pkl
 !models/best_CatBoost_model.pkl
+!models/best_XGBoost_model.pkl
+!models/best_LightGBM_model.pkl
 
 # Results
 results/figures/
 results/*.csv
-!results/xgboost_icp_metrics.csv
-!results/xgboost_shap_feature_importance.csv
+!results/figures/
+!results/figures/00_paper_boxplot.png
+!results/figures/03_pcc_map.png
+!results/figures/04_ternary_plot.png
+!results/figures/04_model_joint_scatter.png
+!results/figures/05_catboost_conformal_prediction_interval.png
+!results/figures/06_catboost_shap_importance.png
+!results/figures/07_catboost_multiobjective_ga.png
+!results/model_metrics.csv
+!results/feature_importance.csv
+!results/ga_optimization_summary.csv
+!results/ga_optimization_convergence.csv
+!results/ga_optimization_solutions.csv
 !results/catboost_icp_metrics.csv
 !results/catboost_shap_feature_importance.csv
 !results/imputation_validation_metrics.csv
@@ -68,6 +82,7 @@ catboost_info/
 
 # OS
 .DS_Store
+.matplotlib-cache/
 Thumbs.db
 
 # Logs

@@ -7,9 +7,6 @@ mean RMSE.  The selected parameters are saved for all downstream scripts.
 from pathlib import Path
 import json
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
@@ -21,7 +18,6 @@ from xgboost import XGBRegressor
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "data" / "processed" / "adsorption_data_processed.csv"
 RESULT_PATH = ROOT / "results" / "xgboost_bayesian_optimization_trials.csv"
-FIGURE_PATH = ROOT / "results" / "figures" / "08_xgboost_bayesian_optimization.png"
 PARAMETER_PATH = ROOT / "models" / "xgboost_best_params.json"
 TARGET = "P adsorption capacity (mg/g)"
 RANDOM_STATE = 42
@@ -66,26 +62,12 @@ def main():
     trials = study.trials_dataframe(attrs=("number", "value", "params", "user_attrs", "state"))
     trials.rename(columns={"value": "cv_rmse_mean", "user_attrs_cv_r2_mean": "cv_r2_mean", "user_attrs_cv_r2_sd": "cv_r2_sd", "user_attrs_cv_rmse_sd": "cv_rmse_sd"}, inplace=True)
     RESULT_PATH.parent.mkdir(exist_ok=True)
-    FIGURE_PATH.parent.mkdir(exist_ok=True)
     PARAMETER_PATH.parent.mkdir(exist_ok=True)
     trials.to_csv(RESULT_PATH, index=False, encoding="utf-8-sig")
 
     best = {key: int(value) if key in {"n_estimators", "max_depth", "min_child_weight"} else float(value) for key, value in study.best_params.items()}
     with PARAMETER_PATH.open("w", encoding="utf-8") as file:
         json.dump({"selection_method": "Optuna TPE Bayesian optimization; 5-fold CV on the 80% development set; objective = mean CV RMSE", "n_trials": N_TRIALS, "random_state": RANDOM_STATE, "best_cv_rmse": study.best_value, "best_cv_r2": study.best_trial.user_attrs["cv_r2_mean"], "parameters": best}, file, ensure_ascii=False, indent=2)
-
-    running_best = np.minimum.accumulate(trials["cv_rmse_mean"].to_numpy())
-    fig, ax = plt.subplots(figsize=(6.5, 4.4))
-    ax.scatter(trials["number"], trials["cv_rmse_mean"], s=18, color="#94a9bf", alpha=0.75, label="Each trial")
-    ax.plot(trials["number"], running_best, color="#176a88", linewidth=2.1, label="Best value so far")
-    ax.set_xlabel("Bayesian optimization trial")
-    ax.set_ylabel("Five-fold CV RMSE (mg/g)")
-    ax.legend(frameon=True, edgecolor="#b8c1ca", fontsize=9)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.grid(axis="y", alpha=0.18)
-    fig.tight_layout()
-    fig.savefig(FIGURE_PATH, dpi=400, bbox_inches="tight")
-    plt.close(fig)
 
     print(json.dumps({"best_parameters": best, "best_cv_rmse": study.best_value, "best_cv_r2": study.best_trial.user_attrs["cv_r2_mean"]}, ensure_ascii=False, indent=2))
 

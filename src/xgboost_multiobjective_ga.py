@@ -1,4 +1,7 @@
-"""用 NSGA-II 型多目标遗传算法优化 P 吸附容量与能耗代理指标，并绘制图 7。"""
+"""用 NSGA-II 型多目标遗传算法优化CatBoost的P吸附容量与能耗代理指标，并绘制图7。
+
+文件名沿用历史命名，实际使用的是 models/best_CatBoost_model.pkl。
+"""
 from pathlib import Path
 
 import joblib

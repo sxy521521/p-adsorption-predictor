@@ -22,12 +22,12 @@
 
 ## 数据集字段说明
 
-本项目使用以下 12 个字段，与 `需缺失值补充数据_DTR插补结果.xlsx` 保持一致；孔体积与 BET 比表面积的缺失值已使用决策树回归（DTR）补充。
+本项目使用以下 12 个字段，与最新的缺失值补充工作簿保持一致；孔体积与 BET 比表面积的缺失值已使用决策树回归（DTR）补充。工作簿路径由运行命令显式传入，不将个人电脑路径写入项目。
 
 | 字段名 | 说明 | 数据类型 |
 |--------|------|----------|
 | Modified or unmodified | 是否改性 | 0/1 |
-| Modified material type | 材料类型 | biochar/MOF/activated_carbon/chitosan |
+| Modified material type | 改性材料类型编号 | 0–30的编码 |
 | Cross-linked or uncross-linked | 是否交联 | 0/1 |
 | Cross-linking agent type | 交联剂类型 | 类别编号 |
 | Adsorbent dosage (g/L) | 吸附剂用量 | 数值 |
@@ -51,28 +51,32 @@ adsorption_ml_project/
 │   └── processed/
 │       └── adsorption_data_processed.csv
 ├── models/
-│   └── model_info.json
+│   ├── best_CatBoost_model.pkl
+│   ├── catboost_icp_model.pkl
+│   ├── catboost_best_params.json
+│   ├── xgboost_best_params.json
+│   └── lightgbm_best_params.json
 ├── results/
 │   ├── figures/
-│   │   ├── 01_boxplot.png
-│   │   ├── 02_violinplot.png
-│   │   ├── 03_correlation_heatmap.png
-│   │   └── pareto_front.png
-│   ├── eda_results.json
-│   └── pareto_optimal_solutions.csv
+│   │   ├── 00_paper_boxplot.png
+│   │   ├── 03_pcc_map.png
+│   │   ├── 04_ternary_plot.png
+│   │   ├── 04_model_joint_scatter.png
+│   │   ├── 05_catboost_conformal_prediction_interval.png
+│   │   ├── 06_catboost_shap_importance.png
+│   │   └── 07_catboost_multiobjective_ga.png
+│   ├── model_metrics.csv
+│   ├── catboost_icp_metrics.csv
+│   ├── catboost_shap_feature_importance.csv
+│   └── ga_optimization_summary.csv
 ├── src/
-│   ├── create_sample_data.py
-│   ├── data_preprocessing.py
-│   ├── eda_analysis.py
+│   ├── impute_and_prepare_data.py
+│   ├── tree_model_bayesian_optimization.py
+│   ├── xgboost_bayesian_optimization.py
 │   ├── model_training.py
-│   └── ga_optimization.py
-└── src_simple/
-    ├── create_sample_data.py
-    ├── data_preprocessing.py
-    ├── eda_analysis_fixed.py
-    ├── model_training_fixed.py
-    ├── ga_optimization.py
-    └── generate_visualizations.py
+│   ├── paper_style_xgboost_conformal.py  # 历史文件名，实际使用CatBoost
+│   ├── paper_style_xgboost_shap.py      # 历史文件名，实际使用CatBoost
+│   └── xgboost_multiobjective_ga.py
 ```
 
 ---
@@ -91,7 +95,7 @@ pip install -r requirements.txt
 
 ```bash
 cd adsorption_ml_project
-python src/impute_and_prepare_data.py
+python src/impute_and_prepare_data.py /path/to/需缺失值补充数据.xlsx
 ```
 
 **输出**：`data/processed/adsorption_data_processed.csv`
@@ -99,14 +103,19 @@ python src/impute_and_prepare_data.py
 ### 步骤2：训练与比较模型
 
 ```bash
+python src/xgboost_bayesian_optimization.py
+python src/tree_model_bayesian_optimization.py
 python src/model_training.py
 ```
 
-**输出**：三种模型、模型指标和最佳模型文件。
+**输出**：三种模型、模型指标和最佳模型文件。两个调参脚本在80%开发集内部使用5折交叉验证，独立20%测试集不参与超参数搜索。
 
 ### 步骤3：生成论文图
 
 ```bash
+python src/paper_style_boxplot.py
+python src/paper_style_ternary.py
+python src/paper_style_pcc.py
 python src/paper_style_model_scatter.py
 python src/paper_style_xgboost_conformal.py
 python src/paper_style_xgboost_shap.py
@@ -121,7 +130,7 @@ streamlit run app.py
 
 **优化目标**：
 - 最大化 P adsorption capacity (mg/g)
-- 最小化能耗成本
+- 最小化归一化温度×时间能耗代理指标（不等同于实际能耗）
 
 ---
 
@@ -135,17 +144,23 @@ streamlit run app.py
 
 ## 可视化图片说明
 
-### 01_boxplot.png - 箱线图
+### 00_paper_boxplot.png - 箱线图
 展示所有输入变量的分布情况，包括中位数、四分位数和异常值。
 
-### 02_violinplot.png - 小提琴图
-对比改性/未改性材料的吸附容量分布。
-
-### 03_correlation_heatmap.png - 相关性热图
+### 03_pcc_map.png - 相关性热图
 展示变量间的Pearson相关系数，红色表示负相关，蓝色表示正相关。
 
-### 04_pairplot.png - 散点图矩阵
-展示关键变量两两之间的关系。
+### 04_model_joint_scatter.png - 模型联合散点图
+展示三种模型在训练集与测试集上的实测值、预测值和边际核密度分布。
+
+### 05_catboost_conformal_prediction_interval.png - 归纳共形预测区间
+展示CatBoost在独立测试集上的95%预测区间。
+
+### 06_catboost_shap_importance.png - SHAP特征贡献
+展示CatBoost模型中各输入变量的相对贡献。
+
+### 07_catboost_multiobjective_ga.png - 多目标优化
+展示不同初始P浓度约束下的CatBoost预测结果和NSGA-II迭代过程。
 
 ---
 
@@ -171,11 +186,11 @@ streamlit run app.py
 
 ### 添加新模型
 
-在 `model_training_fixed.py` 中添加新模型类。
+在 `model_training.py` 中添加新模型类，并沿用开发集内交叉验证的参数选择流程。
 
 ### 调整优化目标
 
-修改 `ga_optimization.py` 中的评估函数。
+修改 `xgboost_multiobjective_ga.py` 中的目标函数和搜索边界。
 
 ---
 

@@ -17,4 +17,4 @@ streamlit run app.py
 3. 选择该 GitHub 仓库和分支，主文件填写 `app.py`。
 4. 点击部署。平台会根据 `requirements.txt` 与 `packages.txt` 安装依赖。
 
-网页会加载最终的 CatBoost 共形预测模型 `models/catboost_icp_model.pkl`，并读取共形预测、SHAP 和处理后数据文件。若需要重新运行图7，还需保留 `models/best_CatBoost_model.pkl`。因此发布时需保留 `models/`、`data/processed/` 和 `results/` 目录，以及 `requirements.txt`。
+网页会加载最终的 CatBoost 共形预测模型 `models/catboost_icp_model.pkl`，并读取 `data/processed/adsorption_data_processed.csv`、`results/catboost_icp_metrics.csv` 和 `results/catboost_shap_feature_importance.csv`。若需要重新运行图7，还需保留 `models/best_CatBoost_model.pkl`、`results/ga_optimization_summary.csv` 等优化结果文件。发布网页至少需要保留上述模型、处理后数据、指标和SHAP结果，以及 `requirements.txt` 与 `packages.txt`；不需要上传个人电脑上的原始Excel路径。
