@@ -193,10 +193,13 @@ def main():
             profile_n = int(selected_profile["n_train"].iloc[0])
             prediction = float(model.predict(model_input)[0])
             half_width = float(metrics["conformal_residual_quantile_mg_g"])
+            # P 吸附容量不存在负值；仅在网页展示端截断不具物理意义的负下限。
+            lower_bound = max(0.0, prediction - half_width)
+            upper_bound = prediction + half_width
             st.divider()
             result_col, interval_col = st.columns(2)
             result_col.metric("预测 P 吸附容量", f"{prediction:.2f} mg/g")
-            interval_col.metric("95% 预测区间", f"{prediction - half_width:.2f}–{prediction + half_width:.2f} mg/g")
+            interval_col.metric("95% 预测区间", f"{lower_bound:.2f}–{upper_bound:.2f} mg/g")
             if profile_n <= 10:
                 st.warning(f"该材料/交联组合在训练数据中仅有 {profile_n} 条记录，结果仅宜用于探索性筛选。")
             if nearest_distance > support_limit:
