@@ -39,6 +39,12 @@ def agent_label(code):
     return f"{code} · {AGENT_NAMES.get(str(code), '未命名交联剂')}"
 
 
+def reset_widgets(*keys):
+    """上游选择变化时，清除已不适用的下游选择。"""
+    for key in keys:
+        st.session_state.pop(key, None)
+
+
 @st.cache_resource
 def load_model_assets():
     model = joblib.load(MODEL_PATH)
@@ -116,36 +122,45 @@ def main():
 
     with form_col:
         st.subheader("预测参数")
-        with st.form("prediction_form", border=False):
+        # 这里不能使用 st.form：材料状态变化时需要立即刷新下级选项。
+        with st.container():
             material_col, condition_col = st.columns(2, gap="large")
             with material_col:
                 st.markdown("**材料信息**")
-                modified = st.selectbox("是否改性", [0, 1], format_func=lambda x: "0 · 未改性" if x == 0 else "1 · 改性")
+                modified = st.selectbox(
+                    "是否改性", [0, 1], key="modified",
+                    format_func=lambda x: "0 · 未改性" if x == 0 else "1 · 改性",
+                    on_change=reset_widgets, args=("material_type", "crosslinked", "agent_type"),
+                )
                 if modified == 0:
                     material_type = "0"
-                    st.text_input("改性材料类型", "0 · 未改性（自动设定）", disabled=True)
+                    st.text_input("改性材料类型", "0 · 未改性（自动设定）", key="material_disabled", disabled=True)
                     profiles_after_material = profiles.loc[profiles["modified"].eq(0) & profiles["material_type"].eq("0")]
                 else:
                     material_options = sort_codes(profiles.loc[
                         profiles["modified"].eq(1) & profiles["material_type"].ne("0"), "material_type"
                     ].unique())
-                    material_type = st.selectbox("改性材料类型", material_options, format_func=material_label)
+                    material_type = st.selectbox(
+                        "改性材料类型", material_options, key="material_type", format_func=material_label,
+                        on_change=reset_widgets, args=("crosslinked", "agent_type"),
+                    )
                     profiles_after_material = profiles.loc[
                         profiles["modified"].eq(1) & profiles["material_type"].eq(material_type)
                     ]
 
                 crosslinked = st.selectbox(
-                    "是否交联", sorted(profiles_after_material["crosslinked"].unique()),
+                    "是否交联", sorted(profiles_after_material["crosslinked"].unique()), key="crosslinked",
                     format_func=lambda x: "0 · 未交联" if x == 0 else "1 · 交联",
+                    on_change=reset_widgets, args=("agent_type",),
                 )
                 if crosslinked == 0:
                     crosslink_agent_type = "0"
-                    st.text_input("交联剂类型", "0 · 无交联剂（自动设定）", disabled=True)
+                    st.text_input("交联剂类型", "0 · 无交联剂（自动设定）", key="agent_disabled", disabled=True)
                 else:
                     agent_options = sort_codes(profiles_after_material.loc[
                         profiles_after_material["crosslinked"].eq(1) & profiles_after_material["agent_type"].ne("0"), "agent_type"
                     ].unique())
-                    crosslink_agent_type = st.selectbox("交联剂类型", agent_options, format_func=agent_label)
+                    crosslink_agent_type = st.selectbox("交联剂类型", agent_options, key="agent_type", format_func=agent_label)
 
             with condition_col:
                 st.markdown("**反应与材料参数**")
@@ -156,7 +171,7 @@ def main():
                 solution_ph = st.number_input("溶液 pH", 1.0, 12.0, float(defaults["Solution pH"]), 0.1)
                 pore_volume = st.number_input("孔体积 (cm³/g)", 0.0085, 9.223, float(defaults["Pore volume (cm³/g)"]), 0.01, format="%.4f")
                 bet_area = st.number_input("BET 比表面积 (m²/g)", 0.056, 147.97, float(defaults["BET surface area (m²/g)"]), 1.0)
-            predict_clicked = st.form_submit_button("预测 P 吸附容量", type="primary", use_container_width=True)
+            predict_clicked = st.button("预测 P 吸附容量", type="primary", use_container_width=True)
 
         values = {
             "Modified or unmodified": modified, "Cross-linked or uncross-linked": crosslinked,
