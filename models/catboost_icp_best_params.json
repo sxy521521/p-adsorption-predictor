@@ -1,0 +1,15 @@
+{
+  "selection_method": "Optuna TPE Bayesian optimization; fold-wise DTR imputation and one-hot encoding; 5-fold CV on the 64% proper-training set used by ICP",
+  "n_trials": 60,
+  "random_state": 42,
+  "best_cv_rmse": 11.883361773257187,
+  "best_cv_r2": 0.8953159251469053,
+  "parameters": {
+    "iterations": 700,
+    "learning_rate": 0.04901194357106964,
+    "depth": 7,
+    "l2_leaf_reg": 0.5115405549833432,
+    "random_strength": 0.33508673403375544,
+    "bagging_temperature": 1.9462998339495055
+  }
+}

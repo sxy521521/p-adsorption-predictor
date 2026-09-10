@@ -10,7 +10,7 @@
 
 ### 核心功能
 
-- **数据预处理**：基于 DTR 对缺失的孔体积和 BET 比表面积进行补充，保留 12 列原始字段结构
+- **数据预处理**：基于 DTR 对缺失的孔体积和 BET 比表面积进行补充；预测模型额外保留相应的缺失标记，避免把插补值误当作实测值
 - **模型比较与调参**：使用 Optuna TPE 和 5 折交叉验证在 80% 开发集上优化三种梯度提升树
 - **不确定性分析**：使用 64% 训练集、16% 校准集和 20% 测试集构建 95% 归纳共形预测区间
 - **解释与优化**：使用 CatBoost 原生 SHAP 分析，并用 NSGA-II 遗传算法兼顾吸附容量和能耗代理
@@ -68,15 +68,23 @@ adsorption_ml_project/
 │   ├── model_metrics.csv
 │   ├── catboost_icp_metrics.csv
 │   ├── catboost_shap_feature_importance.csv
+│   ├── catboost_icp_shap_feature_importance.csv
+│   ├── imputation_sensitivity_metrics.csv
+│   ├── model_metrics_bootstrap_ci.csv
 │   └── ga_optimization_summary.csv
 ├── src/
 │   ├── impute_and_prepare_data.py
+│   ├── model_preprocessing.py             # 训练集内DTR插补与独热编码
 │   ├── tree_model_bayesian_optimization.py
 │   ├── xgboost_bayesian_optimization.py
+│   ├── catboost_icp_bayesian_optimization.py
 │   ├── model_training.py
 │   ├── paper_style_xgboost_conformal.py  # 历史文件名，实际使用CatBoost
 │   ├── paper_style_xgboost_shap.py      # 历史文件名，实际使用CatBoost
 │   └── xgboost_multiobjective_ga.py
+│   └── imputation_sensitivity_analysis.py
+│   └── test_set_bootstrap_ci.py
+│   └── icp_shap_importance.py
 ```
 
 ---
@@ -98,17 +106,19 @@ cd adsorption_ml_project
 python src/impute_and_prepare_data.py /path/to/需缺失值补充数据.xlsx
 ```
 
-**输出**：`data/processed/adsorption_data_processed.csv`
+**输出**：完整描述性数据文件，以及保留缺失值的规范化源数据
+`data/raw/adsorption_source_with_missing.csv`。后者供模型训练时在训练集内部拟合DTR插补器使用。
 
 ### 步骤2：训练与比较模型
 
 ```bash
 python src/xgboost_bayesian_optimization.py
 python src/tree_model_bayesian_optimization.py
+python src/catboost_icp_bayesian_optimization.py
 python src/model_training.py
 ```
 
-**输出**：三种模型、模型指标和最佳模型文件。两个调参脚本在80%开发集内部使用5折交叉验证，独立20%测试集不参与超参数搜索。
+**输出**：三种模型、模型指标和最佳模型文件。两个调参脚本在80%开发集内部使用5折交叉验证；每一折仅用该折训练部分拟合DTR插补器与编码器，独立20%测试集不参与预处理、超参数搜索或模型选择。
 
 ### 步骤3：生成论文图
 
@@ -119,6 +129,9 @@ python src/paper_style_pcc.py
 python src/paper_style_model_scatter.py
 python src/paper_style_xgboost_conformal.py
 python src/paper_style_xgboost_shap.py
+python src/icp_shap_importance.py
+python src/imputation_sensitivity_analysis.py
+python src/test_set_bootstrap_ci.py
 python src/xgboost_multiobjective_ga.py
 ```
 
@@ -130,7 +143,7 @@ streamlit run app.py
 
 **优化目标**：
 - 最大化 P adsorption capacity (mg/g)
-- 最小化归一化温度×时间能耗代理指标（不等同于实际能耗）
+- 最小化以环境温度（25 ℃）为基准的热调节强度×反应时间代理指标（不等同于实际全过程能耗）
 
 ---
 
@@ -161,6 +174,14 @@ streamlit run app.py
 
 ### 07_catboost_multiobjective_ga.png - 多目标优化
 展示不同初始P浓度约束下的CatBoost预测结果和NSGA-II迭代过程。
+
+## 研究边界与结果解读
+
+- 箱线图、PCC 图和三元图使用完整数据的 DTR 补充结果，属于描述性分析；模型比较、测试集评价和 ICP 均在外部测试集划分后，仅用训练部分拟合插补器与编码器。
+- 孔体积和 BET 比表面积的缺失比例较高，模型中保留了缺失标记，并提供“剔除这两项及标记”的敏感性分析结果；预测结论应结合该分析解释。
+- 当前数据未保留文献来源标识，因而无法进行按文献分组的外部验证；结果反映本汇总数据集内的泛化性能，不等同于对全新文献或全新材料体系的外部验证。
+- 遗传算法仅在训练数据支持域附近搜索；用于界定该支持域的孔体积和 BET 记录均为实测值。图中多次优化形成的阴影或范围反映算法重复运行的离散性，不是实验重复或统计置信区间。
+- 三元图中的三项变量先分别进行 Min–Max 标准化，再映射为三角坐标比例；它用于展示联合分布，不表示因果关系。
 
 ---
 

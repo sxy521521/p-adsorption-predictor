@@ -1,8 +1,8 @@
 """Prepare the revised adsorption dataset and impute pore volume and BET area.
 
 The source workbook contains '-' placeholders for missing pore-volume and BET
-values. The cross-linking-agent field is retained as an auxiliary predictor
-during imputation and as a model input in the final processed dataset.
+values. Binary status fields remain 0/1, while material type and cross-linking
+agent type are one-hot encoded because their integer codes are nominal labels.
 """
 
 from __future__ import annotations
@@ -34,10 +34,17 @@ MODEL_COLUMNS = [
     "P adsorption capacity (mg/g)",
 ]
 
-NUMERIC_COLUMNS = [
+BINARY_COLUMNS = [
     "Modified or unmodified",
-    "Modified material type",
     "Cross-linked or uncross-linked",
+]
+
+CATEGORICAL_COLUMNS = [
+    "Modified material type",
+    "Cross-linking agent type",
+]
+
+CONTINUOUS_COLUMNS = [
     "Adsorbent dosage (g/L) ",
     "Reactor temperature (℃)",
     "Initial P concentration (mg/L)",
@@ -46,6 +53,8 @@ NUMERIC_COLUMNS = [
     "Pore volume (cm³/g)",
     "BET surface area (m²/g)",
 ]
+
+NUMERIC_COLUMNS = BINARY_COLUMNS + CONTINUOUS_COLUMNS
 
 TARGET_COLUMNS = ["Pore volume (cm³/g)", "BET surface area (m²/g)"]
 
@@ -72,22 +81,29 @@ def load_source(workbook: Path) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Source workbook is missing columns: {sorted(missing)}")
 
-    for column in NUMERIC_COLUMNS:
+    for column in NUMERIC_COLUMNS + ["P adsorption capacity (mg/g)"]:
         df[column] = pd.to_numeric(df[column], errors="coerce")
-    # 空白交联剂记录与基准类型统一记为 0，避免生成额外的 None 类别。
-    df["Cross-linking agent type"] = (
-        pd.to_numeric(df["Cross-linking agent type"], errors="coerce")
-        .fillna(0).astype(int).astype(str)
-    )
+    # 类别编号只表示不同类别，不具有数值大小或先后顺序。
+    # 0 分别表示未改性材料的基准类型、未使用交联剂的基准类型。
+    for column in CATEGORICAL_COLUMNS:
+        df[column] = (
+            pd.to_numeric(df[column], errors="coerce")
+            .fillna(0)
+            .astype(int)
+            .astype(str)
+        )
     return df
 
 
 def make_imputation_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    auxiliary = pd.get_dummies(
-        df["Cross-linking agent type"], prefix="Cross-linking agent type", dtype=float
+    categorical = pd.get_dummies(
+        df[CATEGORICAL_COLUMNS],
+        columns=CATEGORICAL_COLUMNS,
+        drop_first=True,
+        dtype=float,
     )
     # 目标变量不能参与输入特征补充，否则会把结果信息泄漏到输入变量中。
-    return pd.concat([df[NUMERIC_COLUMNS].astype(float), auxiliary], axis=1)
+    return pd.concat([df[NUMERIC_COLUMNS].astype(float), categorical], axis=1)
 
 
 def dtr_impute(matrix: pd.DataFrame, random_state: int = 42, rounds: int = 2) -> pd.DataFrame:
@@ -154,16 +170,19 @@ def run(workbook: Path) -> None:
     if (completed[TARGET_COLUMNS] < 0).any().any():
         raise ValueError("Imputation generated an invalid negative pore volume or BET area.")
 
+    source_path = PROJECT_ROOT / "data/raw/adsorption_source_with_missing.csv"
     raw_path = PROJECT_ROOT / "data/raw/adsorption_sample_data.csv"
     processed_path = PROJECT_ROOT / "data/processed/adsorption_data_processed.csv"
     validation_path = PROJECT_ROOT / "results/imputation_validation_metrics.csv"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     validation_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # 保留一份尚未插补的规范化源数据，供严格的训练集内插补流程使用。
+    source.to_csv(source_path, index=False, encoding="utf-8-sig")
     completed.to_csv(raw_path, index=False, encoding="utf-8-sig")
     processed = pd.get_dummies(
         completed,
-        columns=["Modified material type", "Cross-linking agent type"],
+        columns=CATEGORICAL_COLUMNS,
         drop_first=True,
         dtype=int,
     )
@@ -175,6 +194,7 @@ def run(workbook: Path) -> None:
     print("Missing values before imputation:", missing_before)
     print("Validation summary (five masked-data repeats):")
     print(summary.to_string())
+    print("Saved:", source_path)
     print("Saved:", raw_path)
     print("Saved:", processed_path)
     print("Saved:", validation_path)

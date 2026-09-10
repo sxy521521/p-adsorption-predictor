@@ -14,16 +14,16 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from catboost import CatBoostRegressor
 
+from model_preprocessing import TARGET, load_source_data, prepare_train_and_others
+
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
 MODEL_PATH = PROJECT_DIR / "models" / "catboost_icp_model.pkl"
-PARAMETER_PATH = PROJECT_DIR / "models" / "catboost_best_params.json"
+PARAMETER_PATH = PROJECT_DIR / "models" / "catboost_icp_best_params.json"
 FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "05_catboost_conformal_prediction_interval.png"
 PREDICTION_PATH = PROJECT_DIR / "results" / "catboost_icp_test_predictions.csv"
 METRICS_PATH = PROJECT_DIR / "results" / "catboost_icp_metrics.csv"
 
-TARGET = "P adsorption capacity (mg/g)"
 CONFIDENCE_LEVEL = 0.95
 ALPHA = 1 - CONFIDENCE_LEVEL
 RANDOM_STATE = 42
@@ -47,20 +47,24 @@ def style_axis(ax):
 
 
 def main():
-    df = pd.read_csv(DATA_PATH)
-    x = df.drop(columns=[TARGET])
-    y = df[TARGET]
-
-    # 20% 测试集完全保留；其余样本再划出 20% 作为独立校准集。
-    x_development, x_test, y_development, y_test = train_test_split(
-        x, y, test_size=0.20, random_state=RANDOM_STATE
+    source = load_source_data()
+    development, test_source = train_test_split(
+        source, test_size=0.20, random_state=RANDOM_STATE
     )
-    x_train, x_calibration, y_train, y_calibration = train_test_split(
-        x_development,
-        y_development,
-        test_size=0.20,
-        random_state=RANDOM_STATE,
+    train_source, calibration_source = train_test_split(
+        development, test_size=0.20, random_state=RANDOM_STATE
     )
+    # DTR与编码器仅在64%正式训练集拟合，再转换校准集和测试集。
+    train, [calibration, test] = prepare_train_and_others(
+        train_source, [calibration_source, test_source], random_state=RANDOM_STATE
+    )
+    processed_dir = PROJECT_DIR / "data" / "processed"
+    train.to_csv(processed_dir / "icp_train_processed.csv", index=False, encoding="utf-8-sig")
+    calibration.to_csv(processed_dir / "icp_calibration_processed.csv", index=False, encoding="utf-8-sig")
+    test.to_csv(processed_dir / "icp_test_processed.csv", index=False, encoding="utf-8-sig")
+    x_train, y_train = train.drop(columns=[TARGET]), train[TARGET]
+    x_calibration, y_calibration = calibration.drop(columns=[TARGET]), calibration[TARGET]
+    x_test, y_test = test.drop(columns=[TARGET]), test[TARGET]
 
     # 使用在独立开发集内经贝叶斯优化后冻结的 CatBoost 参数，仅在训练子集拟合。
     with PARAMETER_PATH.open(encoding="utf-8") as file:

@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
+TRAIN_DATA_PATH = PROJECT_DIR / "data" / "processed" / "model_train_processed.csv"
+TEST_DATA_PATH = PROJECT_DIR / "data" / "processed" / "model_test_processed.csv"
 MODEL_DIR = PROJECT_DIR / "models"
 OUTPUT_PATH = PROJECT_DIR / "results" / "figures" / "04_model_joint_scatter.png"
 
@@ -54,11 +54,11 @@ def draw_marginal_density(top, right, observed_train, observed_test, predicted_t
 
 
 def main():
-    df = pd.read_csv(DATA_PATH)
     target = "P adsorption capacity (mg/g)"
-    X = df.drop(columns=[target])
-    y = df[target]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    train = pd.read_csv(TRAIN_DATA_PATH)
+    test = pd.read_csv(TEST_DATA_PATH)
+    X_train, y_train = train.drop(columns=[target]), train[target]
+    X_test, y_test = test.drop(columns=[target]), test[target]
 
     model_files = [
         ("CatBoost", MODEL_DIR / "best_CatBoost_model.pkl"),
@@ -69,9 +69,9 @@ def main():
 
     predictions = [(np.asarray(model.predict(X_train)), np.asarray(model.predict(X_test))) for _, model in models]
     # 为边际核密度曲线预留尾部空间，避免在最高值处被坐标边界截断。
-    observed_upper = float(max(y.max(), *(pred.max() for pair in predictions for pred in pair)))
+    observed_upper = float(max(y_train.max(), y_test.max(), *(pred.max() for pair in predictions for pred in pair)))
     upper = max(230.0, observed_upper * 1.15)
-    lower = min(0.0, float(y.min()))
+    lower = min(0.0, float(y_train.min()), float(y_test.min()))
 
     plt.rcParams.update({
         "font.family": "sans-serif",

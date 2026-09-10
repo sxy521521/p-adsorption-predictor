@@ -17,14 +17,25 @@ def main():
     df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
     df.columns = [str(c).strip() for c in df.columns]
 
-    # 三个输入变量按行归一化到 100%，与论文三元图一致。
+    # 先按变量分别做Min–Max标准化，再将每行标准化得分转换为三元比例。
+    # 原始变量单位不同，不能直接按原始数值相加后解释为组成比例。
     columns = [
         "Initial P concentration (mg/L)",
         "BET surface area (m²/g)",
         "Reactor temperature (℃)",
     ]
-    values = df[columns].astype(float).to_numpy()
-    values = values / values.sum(axis=1, keepdims=True) * 100
+    raw_values = df[columns].astype(float).to_numpy()
+    minimum = raw_values.min(axis=0)
+    span = raw_values.max(axis=0) - minimum
+    scaled_values = (raw_values - minimum) / np.where(span == 0, 1, span)
+    row_sum = scaled_values.sum(axis=1, keepdims=True)
+    # 极少数三个变量同时处于全局最小值的样本不具有可定义的三元比例，均分处理。
+    values = np.divide(
+        scaled_values,
+        row_sum,
+        out=np.full_like(scaled_values, 1 / 3),
+        where=row_sum != 0,
+    ) * 100
     target = df["P adsorption capacity (mg/g)"].astype(float).to_numpy()
 
     norm = mpl.colors.Normalize(vmin=np.nanpercentile(target, 2), vmax=np.nanpercentile(target, 98))
@@ -51,9 +62,9 @@ def main():
         tax.scatter(points, marker=marker, color=colors, s=25, alpha=0.78,
                     edgecolors="white", linewidths=0.25, label=label)
 
-    tax.left_axis_label("Initial P concentration (%)", fontsize=10, offset=0.14)
-    tax.right_axis_label("BET surface area (%)", fontsize=10, offset=0.14)
-    tax.bottom_axis_label("Reactor temperature (%)", fontsize=10, offset=0.10)
+    tax.left_axis_label("Initial P concentration (normalized %)", fontsize=10, offset=0.14)
+    tax.right_axis_label("BET surface area (normalized %)", fontsize=10, offset=0.14)
+    tax.bottom_axis_label("Reactor temperature (normalized %)", fontsize=10, offset=0.10)
     tax.ticks(axis="lbr", multiple=20, linewidth=0.6, fontsize=8, tick_formats="%.0f")
     legend_handles = [
         Line2D([0], [0], marker="o", color="none", markerfacecolor="#555555",
@@ -70,7 +81,7 @@ def main():
     cbar.set_label("P adsorption capacity (mg/g)", fontsize=9)
     cbar.ax.tick_params(labelsize=8)
 
-    figure.text(0.5, 0.02, "Color indicates adsorption capacity; marker indicates material condition.",
+    figure.text(0.5, 0.02, "Axes show row-wise proportions of Min–Max normalized variables; color indicates adsorption capacity.",
                 ha="center", fontsize=8, color="#555555")
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(OUTPUT_PATH, dpi=400, bbox_inches="tight", pad_inches=0.04, facecolor="white")

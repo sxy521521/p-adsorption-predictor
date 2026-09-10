@@ -8,10 +8,11 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
+DATA_PATH = PROJECT_DIR / "data" / "processed" / "model_train_processed.csv"
 MODEL_PATH = PROJECT_DIR / "models" / "best_CatBoost_model.pkl"
 FIGURE_PATH = PROJECT_DIR / "results" / "figures" / "07_catboost_multiobjective_ga.png"
 SUMMARY_PATH = PROJECT_DIR / "results" / "ga_optimization_summary.csv"
@@ -35,6 +36,10 @@ CONTINUOUS_COLS = [
 ]
 MATERIAL_PREFIX = "Modified material type_"
 AGENT_PREFIX = "Cross-linking agent type_"
+IMPUTATION_FLAG_COLS = [
+    "Pore volume (cm³/g) was imputed",
+    "BET surface area (m²/g) was imputed",
+]
 
 POPULATION_SIZE = 80
 GENERATIONS = 500
@@ -44,6 +49,7 @@ MUTATION_SCALE = 0.10
 RANDOM_STATE = 42
 # 1149.12 mg/L 在原始数据中仅出现一次；优化仅在有充分数据支持的实际范围内进行。
 INITIAL_P_OPTIMISATION_MAX = 500.0
+AMBIENT_TEMPERATURE_C = 25.0
 
 
 def non_dominated_fronts(objectives: np.ndarray) -> list[np.ndarray]:
@@ -145,13 +151,43 @@ class CatBoostGAOptimizer:
             raise ValueError("Modified material type columns were not found.")
         if not self.agent_columns:
             raise ValueError("Cross-linking agent type columns were not found.")
-        # 仅保留原始数据中真实出现过的“改性/交联/材料/交联剂”组合，
+        # 优化方案需要给出可实测的孔体积和BET值，因此支持域仅由两项均为
+        # 实测值的训练记录构成；避免用“插补出的结构参数”去界定最优工况。
+        self.support_reference = x.loc[(x[IMPUTATION_FLAG_COLS] == 0).all(axis=1)].copy()
+        if len(self.support_reference) < 50:
+            raise ValueError("可用于界定优化支持域的完整结构参数记录不足。")
+        # 仅保留完整记录中真实出现过的“改性/交联/材料/交联剂”组合，
         # 避免优化过程虚构类别组合。
         self.category_columns = self.material_columns + self.agent_columns
-        self.valid_combinations = x[
+        self.valid_combinations = self.support_reference[
             [STATUS_COL, CROSSLINK_COL, *self.category_columns]
         ].drop_duplicates(ignore_index=True)
         self.column_index = {column: index for index, column in enumerate(self.model_columns)}
+        # 初始P浓度由情景人为固定，不能因该单一约束而被误判为外推；
+        # 插补标记也不应作为新实验条件的距离维度。其余材料组合和连续条件
+        # 必须接近训练数据，才允许作为候选解。
+        self.support_columns = [
+            STATUS_COL, CROSSLINK_COL, *self.category_columns,
+            *[column for column in CONTINUOUS_COLS if column != INITIAL_P_COL],
+        ]
+        self.support_tree = cKDTree(self._scale_support_input(self.support_reference.loc[:, self.model_columns]))
+        reference_distances, _ = self.support_tree.query(
+            self._scale_support_input(self.support_reference.loc[:, self.model_columns]), k=2
+        )
+        self.support_distance_limit = float(np.percentile(reference_distances[:, 1], 95))
+        max_thermal_delta = float(np.max(np.abs(self.continuous_bounds[self.temperature_index] - AMBIENT_TEMPERATURE_C)))
+        self.thermal_energy_scale = max(max_thermal_delta * self.continuous_bounds[self.time_index, 1], 1e-12)
+
+    def _scale_support_input(self, frame: pd.DataFrame) -> np.ndarray:
+        scaled = frame.loc[:, self.support_columns].to_numpy(dtype=float).copy()
+        support_index = {column: index for index, column in enumerate(self.support_columns)}
+        for column in CONTINUOUS_COLS:
+            if column == INITIAL_P_COL:
+                continue
+            index = support_index[column]
+            low, high = self.continuous_bounds[CONTINUOUS_COLS.index(column)]
+            scaled[:, index] = (scaled[:, index] - low) / max(high - low, 1e-12)
+        return scaled
 
     def repair(self, population: np.ndarray, fixed_initial_p: float | None) -> np.ndarray:
         repaired = population.copy()
@@ -164,10 +200,22 @@ class CatBoostGAOptimizer:
         return repaired
 
     def initialise(self, rng: np.random.Generator, fixed_initial_p: float | None) -> np.ndarray:
+        # 从真实训练记录出发，而非在七维连续空间盲目均匀撒点，保证首代位于
+        # 已观测工况附近；后续变异仅在该支持域内竞争。
         population = np.empty((POPULATION_SIZE, 1 + len(CONTINUOUS_COLS)))
-        population[:, 0] = rng.integers(0, len(self.valid_combinations), size=POPULATION_SIZE)
-        lower, upper = self.continuous_bounds[:, 0], self.continuous_bounds[:, 1]
-        population[:, 1:] = rng.uniform(lower, upper, size=(POPULATION_SIZE, len(CONTINUOUS_COLS)))
+        candidate_rows = self.support_reference.loc[
+            self.support_reference[INITIAL_P_COL] <= INITIAL_P_OPTIMISATION_MAX
+        ]
+        selected_rows = candidate_rows.iloc[rng.integers(0, len(candidate_rows), size=POPULATION_SIZE)]
+        population[:, 1:] = selected_rows.loc[:, CONTINUOUS_COLS].to_numpy(dtype=float)
+        combination_lookup = {
+            tuple(row): index
+            for index, row in self.valid_combinations.iterrows()
+        }
+        population[:, 0] = [
+            combination_lookup[tuple(row)]
+            for _, row in selected_rows.loc[:, [STATUS_COL, CROSSLINK_COL, *self.category_columns]].iterrows()
+        ]
         return self.repair(population, fixed_initial_p)
 
     def model_input(self, population: np.ndarray) -> pd.DataFrame:
@@ -181,26 +229,24 @@ class CatBoostGAOptimizer:
             matrix[:, self.column_index[column]] = combinations[column].to_numpy(dtype=float)
         return pd.DataFrame(matrix, columns=self.model_columns)
 
-    def evaluate(self, population: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        prediction = np.asarray(self.model.predict(self.model_input(population)))
+    def evaluate(self, population: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        candidate_input = self.model_input(population)
+        prediction = np.asarray(self.model.predict(candidate_input))
         normalised_prediction = (prediction - self.target_min) / self.target_span
         temperature = population[:, 1 + self.temperature_index]
         reaction_time = population[:, 1 + self.time_index]
-        temperature_norm = (
-            (temperature - self.continuous_bounds[self.temperature_index, 0])
-            / (self.continuous_bounds[self.temperature_index, 1] - self.continuous_bounds[self.temperature_index, 0])
-        )
-        time_norm = (
-            (reaction_time - self.continuous_bounds[self.time_index, 0])
-            / (self.continuous_bounds[self.time_index, 1] - self.continuous_bounds[self.time_index, 0])
-        )
-        energy_proxy = temperature_norm * time_norm
-        # NSGA-II 的两个最小化目标：最大 P 吸附量（取负）与最小能耗代理值。
+        # 相对25 ℃环境温度的热调节负担；仅作为可比较的热能代理指标。
+        energy_proxy = np.abs(temperature - AMBIENT_TEMPERATURE_C) * reaction_time / self.thermal_energy_scale
+        support_distance, _ = self.support_tree.query(self._scale_support_input(candidate_input), k=1)
+        supported = support_distance <= self.support_distance_limit
+        # NSGA-II 的两个最小化目标：最大P吸附量（取负）与最小热调节代理值。
         objectives = np.column_stack([-normalised_prediction, energy_proxy])
         # 仅用于展示每代最优进展及从 Pareto 候选中选择等权折衷解，
         # 不替代 NSGA-II 的两个独立优化目标。
         composite_objective = -normalised_prediction + energy_proxy
-        return prediction, objectives, composite_objective
+        objectives[~supported] = 10.0
+        composite_objective[~supported] = 10.0
+        return prediction, objectives, composite_objective, support_distance
 
     def offspring(
         self,
@@ -238,26 +284,30 @@ class CatBoostGAOptimizer:
     def run(self, fixed_initial_p: float | None, seed: int) -> tuple[dict, np.ndarray]:
         rng = np.random.default_rng(seed)
         population = self.initialise(rng, fixed_initial_p)
-        prediction, objectives, composite = self.evaluate(population)
+        prediction, objectives, composite, support_distance = self.evaluate(population)
         history = np.empty(GENERATIONS)
         for generation in range(GENERATIONS):
             children = self.offspring(population, objectives, rng, fixed_initial_p)
-            child_prediction, child_objectives, child_composite = self.evaluate(children)
+            child_prediction, child_objectives, child_composite, child_support_distance = self.evaluate(children)
             combined_population = np.vstack([population, children])
             combined_prediction = np.concatenate([prediction, child_prediction])
             combined_objectives = np.vstack([objectives, child_objectives])
             combined_composite = np.concatenate([composite, child_composite])
+            combined_support_distance = np.concatenate([support_distance, child_support_distance])
             selected = nsga2_select(combined_objectives, POPULATION_SIZE)
             population = combined_population[selected]
             prediction = combined_prediction[selected]
             objectives = combined_objectives[selected]
             composite = combined_composite[selected]
+            support_distance = combined_support_distance[selected]
             history[generation] = composite.min()
 
         best_index = int(np.argmin(composite))
         solution = {"predicted_p_adsorption_capacity_mg_g": float(prediction[best_index]),
                     "energy_proxy": float(objectives[best_index, 1]),
                     "composite_objective": float(composite[best_index]),
+                    "nearest_training_distance": float(support_distance[best_index]),
+                    "support_distance_limit": self.support_distance_limit,
                     "combination_code": int(round(population[best_index, 0]))}
         combination = self.valid_combinations.iloc[solution["combination_code"]]
         solution[STATUS_COL] = combination[STATUS_COL]
@@ -291,9 +341,12 @@ def main():
     initial_p_values = x.loc[
         x[INITIAL_P_COL] <= INITIAL_P_OPTIMISATION_MAX, INITIAL_P_COL
     ].to_numpy()
-    scenarios = []
-    for percentile in range(10, 101, 10):
-        scenarios.append((f"{percentile}th percentile", float(np.percentile(initial_p_values, percentile))))
+    percentile_values = [float(np.percentile(initial_p_values, percentile)) for percentile in range(10, 101, 10)]
+    unique_values = []
+    for value in percentile_values:
+        if not any(np.isclose(value, existing) for existing in unique_values):
+            unique_values.append(value)
+    scenarios = [(f"Fixed {value:g} mg/L", value) for value in unique_values]
     scenarios.append(("Practical range (≤500 mg/L)", None))
 
     solution_rows = []
@@ -337,6 +390,7 @@ def main():
             "predicted_p_lower_95_mg_g": float(np.percentile(predicted_values, 2.5)),
             "predicted_p_upper_95_mg_g": float(np.percentile(predicted_values, 97.5)),
             "energy_proxy_mean": float(energy_values.mean()),
+            "spread_definition": "2.5–97.5% spread across 10 optimization runs; not a confidence interval",
         })
         print(f"Completed: {scenario_label}")
 
@@ -375,7 +429,7 @@ def main():
         [label.replace(" percentile", "th") if label != "Full range" else label for label in summary["scenario"]],
         rotation=65, ha="right", fontsize=7.2,
     )
-    ax_response.set_xlabel("Initial P concentration constraint (≤500 mg/L)", fontsize=9.3)
+    ax_response.set_xlabel("Initial P concentration constraint", fontsize=9.3)
     ax_response.set_ylabel("Predicted P adsorption capacity (mg/g)", fontsize=9.3)
     style_axis(ax_response)
 

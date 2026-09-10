@@ -1,0 +1,14 @@
+﻿rank,feature,mean_absolute_shap,source_columns,percentage_contribution
+1,Initial P concentration (mg/L),14.688852999930175,Initial P concentration (mg/L),29.268631449162314
+2,BET surface area missingness,5.671653151990406,BET surface area (m²/g) was imputed,11.301190488724753
+3,Modified material type,4.4545238345878815,Modified material type_1 | Modified material type_2 | Modified material type_3 | Modified material type_4 | Modified material type_5 | Modified material type_6 | Modified material type_7 | Modified material type_8 | Modified material type_9 | Modified material type_10 | Modified material type_11 | Modified material type_12 | Modified material type_13 | Modified material type_14 | Modified material type_15 | Modified material type_16 | Modified material type_17 | Modified material type_18 | Modified material type_19 | Modified material type_20 | Modified material type_21 | Modified material type_22 | Modified material type_23 | Modified material type_24 | Modified material type_25 | Modified material type_26 | Modified material type_27 | Modified material type_28 | Modified material type_29 | Modified material type_30,8.875969852559743
+4,Solution pH,4.283096956759956,Solution pH,8.534389056043503
+5,Adsorbent dosage (g/L),3.9268033179051134,Adsorbent dosage (g/L) ,7.824447496728223
+6,Reaction time (min),3.730798781958067,Reaction time (min),7.43389388951155
+7,Modified / unmodified,3.264351789937362,Modified or unmodified,6.504463586131888
+8,BET surface area (m²/g),2.9109865200024596,BET surface area (m²/g),5.800357019560109
+9,Cross-linked / uncross-linked,2.4784520166987063,Cross-linked or uncross-linked,4.938499870720495
+10,Cross-linking agent type,1.5344686741268183,Cross-linking agent type_1 | Cross-linking agent type_2 | Cross-linking agent type_3 | Cross-linking agent type_4,3.0575428927987836
+11,Pore volume (cm³/g),1.2020530493699884,Pore volume (cm³/g),2.3951800514661796
+12,Reactor temperature (°C),1.041890216173503,Reactor temperature (℃),2.0760437011531994
+13,Pore volume missingness,0.9984022246154528,Pore volume (cm³/g) was imputed,1.9893906454392571

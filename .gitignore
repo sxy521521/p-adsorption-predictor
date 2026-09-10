@@ -64,7 +64,6 @@ results/*.csv
 !results/figures/06_catboost_shap_importance.png
 !results/figures/07_catboost_multiobjective_ga.png
 !results/model_metrics.csv
-!results/feature_importance.csv
 !results/ga_optimization_summary.csv
 !results/ga_optimization_convergence.csv
 !results/ga_optimization_solutions.csv

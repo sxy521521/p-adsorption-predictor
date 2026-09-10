@@ -1,0 +1,3 @@
+﻿model_variant,n_features,test_r2,test_rmse_mg_g,test_mae_mg_g
+Full feature set,45,0.9199039102441045,10.15538411186204,6.253487837842224
+Without pore volume and BET,41,0.9263341948258571,9.73920858695597,6.179529535443318

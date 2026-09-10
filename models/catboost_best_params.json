@@ -1,15 +1,15 @@
 {
-  "selection_method": "Optuna TPE Bayesian optimization; 5-fold CV on the 80% development set; objective = mean CV RMSE",
+  "selection_method": "Optuna TPE Bayesian optimization; fold-wise DTR imputation and one-hot encoding; 5-fold CV on the 80% development set; objective = mean CV RMSE",
   "n_trials": 60,
   "random_state": 42,
-  "best_cv_rmse": 11.759220294785704,
-  "best_cv_r2": 0.8968678902269973,
+  "best_cv_rmse": 11.91031656836687,
+  "best_cv_r2": 0.8947225782076036,
   "parameters": {
-    "iterations": 800,
-    "learning_rate": 0.09696751189083294,
-    "depth": 5,
-    "l2_leaf_reg": 0.7688038222334225,
-    "random_strength": 1.800053690841373,
-    "bagging_temperature": 0.2635478275929114
+    "iterations": 700,
+    "learning_rate": 0.06370363582455749,
+    "depth": 6,
+    "l2_leaf_reg": 0.39936378674053896,
+    "random_strength": 1.258642238916489,
+    "bagging_temperature": 0.9412065450551699
   }
 }

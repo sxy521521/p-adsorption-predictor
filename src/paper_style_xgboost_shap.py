@@ -13,7 +13,7 @@ from catboost import Pool
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
+DATA_PATH = PROJECT_DIR / "data" / "processed" / "model_train_processed.csv"
 # 图 6 与图 7 使用主模型训练脚本保存的同一份 CatBoost 模型。
 # 图 5 为独立的归纳式共形预测流程，使用独立的 64%/16%/20% 数据划分。
 MODEL_PATH = PROJECT_DIR / "models" / "best_CatBoost_model.pkl"
@@ -36,8 +36,14 @@ FEATURE_GROUPS = {
     "Initial P concentration (mg/L)": lambda columns: ["Initial P concentration (mg/L)"],
     "Reaction time (min)": lambda columns: ["Reaction time (min)"],
     "Solution pH": lambda columns: ["Solution pH"],
-    "Pore volume (cm³/g)": lambda columns: ["Pore volume (cm³/g)"],
-    "BET surface area (m²/g)": lambda columns: ["BET surface area (m²/g)"],
+    # 将缺失标记并入对应结构变量，保证图6的贡献率覆盖最终模型的全部输入，
+    # 同时避免把“数据是否插补”误解释为独立材料机制。
+    "Pore volume (cm³/g)": lambda columns: [
+        "Pore volume (cm³/g)", "Pore volume (cm³/g) was imputed"
+    ],
+    "BET surface area (m²/g)": lambda columns: [
+        "BET surface area (m²/g)", "BET surface area (m²/g) was imputed"
+    ],
 }
 
 

@@ -9,10 +9,10 @@ import streamlit as st
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-DATA_PATH = PROJECT_DIR / "data" / "processed" / "adsorption_data_processed.csv"
+DATA_PATH = PROJECT_DIR / "data" / "processed" / "icp_train_processed.csv"
 MODEL_PATH = PROJECT_DIR / "models" / "catboost_icp_model.pkl"
 ICP_METRICS_PATH = PROJECT_DIR / "results" / "catboost_icp_metrics.csv"
-SHAP_PATH = PROJECT_DIR / "results" / "catboost_shap_feature_importance.csv"
+SHAP_PATH = PROJECT_DIR / "results" / "catboost_icp_shap_feature_importance.csv"
 TARGET = "P adsorption capacity (mg/g)"
 
 
@@ -44,13 +44,29 @@ def load_model_assets():
         return codes
 
     # Only category combinations that occur in the training data may be entered.
-    profiles = pd.DataFrame({
+    profile_rows = pd.DataFrame({
         "modified": processed["Modified or unmodified"].astype(int),
         "material_type": category_code(processed, material_columns, "Modified material type_"),
         "crosslinked": processed["Cross-linked or uncross-linked"].astype(int),
         "agent_type": category_code(processed, agent_columns, "Cross-linking agent type_"),
-    }).drop_duplicates(ignore_index=True)
-    return model, processed, feature_names, metrics, importance, profiles
+    })
+    profiles = profile_rows.drop_duplicates(ignore_index=True)
+    profile_counts = profiles.merge(
+        profile_rows.groupby(["modified", "material_type", "crosslinked", "agent_type"]).size().rename("n_train").reset_index(),
+        on=["modified", "material_type", "crosslinked", "agent_type"],
+        how="left",
+    )
+    continuous = [
+        "Adsorbent dosage (g/L) ", "Reactor temperature (℃)", "Initial P concentration (mg/L)",
+        "Reaction time (min)", "Solution pH", "Pore volume (cm³/g)", "BET surface area (m²/g)",
+    ]
+    minimum = processed[continuous].min()
+    span = (processed[continuous].max() - minimum).replace(0, 1)
+    normalized = (processed[continuous] - minimum) / span
+    nearest = np.linalg.norm(normalized.to_numpy()[:, None, :] - normalized.to_numpy()[None, :, :], axis=2)
+    np.fill_diagonal(nearest, np.inf)
+    support_limit = float(np.percentile(nearest.min(axis=1), 95))
+    return model, processed, feature_names, metrics, importance, profiles, profile_counts, continuous, minimum, span, support_limit
 
 
 def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
@@ -87,7 +103,7 @@ def build_model_input(values: dict, feature_names: list[str]) -> pd.DataFrame:
 
 
 def main():
-    model, processed, feature_names, metrics, importance, profiles = load_model_assets()
+    model, processed, feature_names, metrics, importance, profiles, profile_counts, continuous, minimum, span, support_limit = load_model_assets()
     numeric_defaults = processed.median(numeric_only=True)
 
     st.title("P 吸附容量预测平台")
@@ -174,6 +190,20 @@ def main():
 
     if predict_clicked:
         model_input = build_model_input(values, feature_names)
+        normalized_input = (model_input[continuous].iloc[0] - minimum) / span
+        normalized_training = (processed[continuous] - minimum) / span
+        nearest_distance = float(np.linalg.norm(normalized_training.to_numpy() - normalized_input.to_numpy(), axis=1).min())
+        selected_profile = profile_counts.loc[
+            profile_counts["modified"].eq(modified)
+            & profile_counts["material_type"].eq(material_type)
+            & profile_counts["crosslinked"].eq(crosslinked)
+            & profile_counts["agent_type"].eq(crosslink_agent_type)
+        ]
+        profile_n = int(selected_profile["n_train"].iloc[0])
+        if profile_n <= 10:
+            st.warning(f"该材料/交联组合在ICP训练集中仅有 {profile_n} 条记录，预测应仅作为探索性筛选。")
+        if nearest_distance > support_limit:
+            st.warning("当前连续变量组合偏离训练数据适用域，预测区间可能低估真实不确定性。")
         prediction = float(model.predict(model_input)[0])
         interval_half_width = float(metrics["conformal_residual_quantile_mg_g"])
         lower, upper = prediction - interval_half_width, prediction + interval_half_width
@@ -183,7 +213,7 @@ def main():
         result_col.metric("预测 P 吸附容量", f"{prediction:.2f} mg/g")
         interval_col.metric("95% 预测区间", f"{lower:.2f}–{upper:.2f} mg/g")
         note_col.metric("测试集区间覆盖率", f"{empirical_coverage:.1%}")
-        st.caption("该预测区间由独立校准集计算；覆盖率用于说明模型在测试数据上的区间表现。")
+        st.caption(f"该预测区间由独立校准集计算；最近训练样本标准化距离为 {nearest_distance:.2f}（适用域阈值 {support_limit:.2f}）。")
     else:
         st.write("在左侧填写参数后，点击“预测 P 吸附容量”。")
 

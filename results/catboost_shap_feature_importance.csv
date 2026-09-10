@@ -1,12 +1,12 @@
 ﻿rank,feature,mean_absolute_shap,source_columns,percentage_contribution
-1,Initial P concentration (mg/L),15.981620409479678,Initial P concentration (mg/L),29.931032098039463
-2,Modified material type,7.6998835897521,Modified material type_1 | Modified material type_2 | Modified material type_3 | Modified material type_4 | Modified material type_5 | Modified material type_6 | Modified material type_7 | Modified material type_8 | Modified material type_9 | Modified material type_10 | Modified material type_11 | Modified material type_12 | Modified material type_13 | Modified material type_14 | Modified material type_15 | Modified material type_16 | Modified material type_17 | Modified material type_18 | Modified material type_19 | Modified material type_20 | Modified material type_21 | Modified material type_22 | Modified material type_23 | Modified material type_24 | Modified material type_25 | Modified material type_26 | Modified material type_27 | Modified material type_28 | Modified material type_29 | Modified material type_30,14.42065679017969
-3,Modified / unmodified,5.307067127070436,Modified or unmodified,9.939292290572363
-4,Adsorbent dosage (g/L),4.870498322579435,Adsorbent dosage (g/L) ,9.121668384771668
-5,Solution pH,4.629112678958965,Solution pH,8.669591482549372
-6,Reaction time (min),3.8472259239334257,Reaction time (min),7.2052420009523885
-7,Cross-linking agent type,3.367414069661119,Cross-linking agent type_1 | Cross-linking agent type_2 | Cross-linking agent type_3 | Cross-linking agent type_4,6.306630743565391
-8,Cross-linked / uncross-linked,2.653478101089986,Cross-linked or uncross-linked,4.969542272951215
-9,Pore volume (cm³/g),1.799692294341365,Pore volume (cm³/g),3.37053730775473
-10,Reactor temperature (°C),1.6238627818470843,Reactor temperature (℃),3.041236608113079
-11,BET surface area (m²/g),1.614963687586928,BET surface area (m²/g),3.0245700205506423
+1,Initial P concentration (mg/L),15.42293534875588,Initial P concentration (mg/L),30.376139780566035
+2,BET surface area (m²/g),6.9187327166062715,BET surface area (m²/g) | BET surface area (m²/g) was imputed,13.626744024506385
+3,Modified material type,5.305335324564057,Modified material type_1 | Modified material type_2 | Modified material type_3 | Modified material type_4 | Modified material type_5 | Modified material type_6 | Modified material type_7 | Modified material type_8 | Modified material type_9 | Modified material type_10 | Modified material type_11 | Modified material type_12 | Modified material type_13 | Modified material type_14 | Modified material type_15 | Modified material type_16 | Modified material type_17 | Modified material type_18 | Modified material type_19 | Modified material type_20 | Modified material type_21 | Modified material type_22 | Modified material type_23 | Modified material type_24 | Modified material type_25 | Modified material type_26 | Modified material type_27 | Modified material type_28 | Modified material type_29 | Modified material type_30,10.449087917283684
+4,Solution pH,4.209886424324924,Solution pH,8.291553818639128
+5,Adsorbent dosage (g/L),3.821885622476101,Adsorbent dosage (g/L) ,7.5273694188852724
+6,Reaction time (min),3.7133289430628893,Reaction time (min),7.313562332659251
+7,Modified / unmodified,3.500733859871652,Modified or unmodified,6.8948470999458475
+8,Pore volume (cm³/g),2.3351529575739427,Pore volume (cm³/g) | Pore volume (cm³/g) was imputed,4.599184982902118
+9,Cross-linking agent type,2.248420873652263,Cross-linking agent type_1 | Cross-linking agent type_2 | Cross-linking agent type_3 | Cross-linking agent type_4,4.4283623836310095
+10,Cross-linked / uncross-linked,2.12029778146529,Cross-linked or uncross-linked,4.176018399208889
+11,Reactor temperature (°C),1.1764807510924122,Reactor temperature (℃),2.3171298417723847

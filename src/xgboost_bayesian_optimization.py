@@ -14,21 +14,28 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
 from xgboost import XGBRegressor
 
+from model_preprocessing import TARGET, load_source_data, prepare_train_and_others
+
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = ROOT / "data" / "processed" / "adsorption_data_processed.csv"
 RESULT_PATH = ROOT / "results" / "xgboost_bayesian_optimization_trials.csv"
 PARAMETER_PATH = ROOT / "models" / "xgboost_best_params.json"
-TARGET = "P adsorption capacity (mg/g)"
 RANDOM_STATE = 42
 N_TRIALS = 60
 
 
 def main():
-    data = pd.read_csv(DATA_PATH)
-    x, y = data.drop(columns=[TARGET]), data[TARGET]
-    x_dev, _, y_dev, _ = train_test_split(x, y, test_size=0.20, random_state=RANDOM_STATE)
+    data = load_source_data()
+    development, _ = train_test_split(data, test_size=0.20, random_state=RANDOM_STATE)
     cv = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    prepared_folds = []
+    for fold_index, (train_idx, valid_idx) in enumerate(cv.split(development)):
+        prepared_train, [prepared_valid] = prepare_train_and_others(
+            development.iloc[train_idx],
+            [development.iloc[valid_idx]],
+            random_state=RANDOM_STATE + fold_index,
+        )
+        prepared_folds.append((prepared_train, prepared_valid))
 
     def objective(trial):
         params = {
@@ -42,11 +49,15 @@ def main():
             "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 10.0, log=True),
         }
         rmses, r2s = [], []
-        for train_idx, valid_idx in cv.split(x_dev):
+        for prepared_train, prepared_valid in prepared_folds:
+            x_train = prepared_train.drop(columns=[TARGET])
+            y_train = prepared_train[TARGET]
+            x_valid = prepared_valid.drop(columns=[TARGET])
+            y_valid = prepared_valid[TARGET]
             model = XGBRegressor(objective="reg:squarederror", random_state=RANDOM_STATE, n_jobs=-1, **params)
-            model.fit(x_dev.iloc[train_idx], y_dev.iloc[train_idx])
-            prediction = model.predict(x_dev.iloc[valid_idx])
-            observed = y_dev.iloc[valid_idx]
+            model.fit(x_train, y_train)
+            prediction = model.predict(x_valid)
+            observed = y_valid
             rmses.append(np.sqrt(mean_squared_error(observed, prediction)))
             r2s.append(r2_score(observed, prediction))
         trial.set_user_attr("cv_r2_mean", float(np.mean(r2s)))
@@ -67,7 +78,7 @@ def main():
 
     best = {key: int(value) if key in {"n_estimators", "max_depth", "min_child_weight"} else float(value) for key, value in study.best_params.items()}
     with PARAMETER_PATH.open("w", encoding="utf-8") as file:
-        json.dump({"selection_method": "Optuna TPE Bayesian optimization; 5-fold CV on the 80% development set; objective = mean CV RMSE", "n_trials": N_TRIALS, "random_state": RANDOM_STATE, "best_cv_rmse": study.best_value, "best_cv_r2": study.best_trial.user_attrs["cv_r2_mean"], "parameters": best}, file, ensure_ascii=False, indent=2)
+        json.dump({"selection_method": "Optuna TPE Bayesian optimization; fold-wise DTR imputation and one-hot encoding; 5-fold CV on the 80% development set; objective = mean CV RMSE", "n_trials": N_TRIALS, "random_state": RANDOM_STATE, "best_cv_rmse": study.best_value, "best_cv_r2": study.best_trial.user_attrs["cv_r2_mean"], "parameters": best}, file, ensure_ascii=False, indent=2)
 
     print(json.dumps({"best_parameters": best, "best_cv_rmse": study.best_value, "best_cv_r2": study.best_trial.user_attrs["cv_r2_mean"]}, ensure_ascii=False, indent=2))
 
