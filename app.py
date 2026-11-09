@@ -14,7 +14,7 @@ ICP_METRICS_PATH = PROJECT_DIR / "results" / "catboost_icp_metrics.csv"
 
 # 编号与名称来自用户提供的“改性材料以及交联剂对应名称.docx”。
 MATERIAL_NAMES = {
-    "0": "未改性（无改性材料）", "1": "ATP", "2": "La-ATP", "3": "MIL-101(Al)",
+    "0": "Unmodified (no modifier)", "1": "ATP", "2": "La-ATP", "3": "MIL-101(Al)",
     "4": "MIL-101(Fe)", "5": "Zr-Fe", "6": "Zr", "7": "Ni", "8": "Le-Ca-LDH",
     "9": "La-Ca-LDH", "10": "La", "11": "MIL-88B(Fe)", "12": "La@PDA", "13": "Ni",
     "14": "La-Ca/ATP", "15": "Ca-ATP", "16": "La-ATP", "17": "MMT-Fe", "18": "Fe",
@@ -22,9 +22,9 @@ MATERIAL_NAMES = {
     "24": "nano-ZnO", "25": "ZnO", "26": "Ca-OMMT", "27": "TAC", "28": "Zr-GO",
     "29": "La-ZSM-5-H", "30": "La-Bentonite",
 }
-AGENT_NAMES = {"0": "无交联剂", "1": "GA", "2": "ECH", "3": "TPP", "4": "CIT"}
+AGENT_NAMES = {"0": "No cross-linking agent", "1": "GA", "2": "ECH", "3": "TPP", "4": "CIT"}
 
-st.set_page_config(page_title="P吸附容量预测平台", page_icon="🧪", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="P Adsorption Capacity Prediction", page_icon="🧪", layout="wide", initial_sidebar_state="collapsed")
 
 
 def sort_codes(codes):
@@ -32,11 +32,11 @@ def sort_codes(codes):
 
 
 def material_label(code):
-    return f"{code} · {MATERIAL_NAMES.get(str(code), '未命名材料')}"
+    return f"{code} · {MATERIAL_NAMES.get(str(code), 'Unnamed material')}"
 
 
 def agent_label(code):
-    return f"{code} · {AGENT_NAMES.get(str(code), '未命名交联剂')}"
+    return f"{code} · {AGENT_NAMES.get(str(code), 'Unnamed cross-linking agent')}"
 
 
 def reset_widgets(*keys):
@@ -107,41 +107,41 @@ def main():
     model, processed, feature_names, metrics, profiles, profile_counts, continuous, minimum, span, support_limit = load_model_assets()
     defaults = processed.median(numeric_only=True)
 
-    st.title("P 吸附容量预测")
-    st.caption("输入材料信息与反应条件，获得预测吸附容量及 95% 预测区间。结果用于实验前筛选，仍需实验验证。")
+    st.title("P Adsorption Capacity Prediction")
+    st.caption("Enter material properties and reaction conditions to estimate P adsorption capacity and a 95% prediction interval. Results support preliminary screening and require experimental validation.")
 
     catalog_col, form_col = st.columns([0.9, 1.7], gap="large")
     with catalog_col:
-        st.subheader("可选材料")
-        st.caption("页面仅允许训练数据中出现过的有效材料组合。")
-        material_table = pd.DataFrame({"编号": list(MATERIAL_NAMES), "改性材料": list(MATERIAL_NAMES.values())}).iloc[1:]
+        st.subheader("Available Modifiers")
+        st.caption("Only material combinations represented in the training data can be selected.")
+        material_table = pd.DataFrame({"Code": list(MATERIAL_NAMES), "Modifier": list(MATERIAL_NAMES.values())}).iloc[1:]
         st.dataframe(material_table, hide_index=True, use_container_width=True, height=420)
-        st.subheader("可选交联剂")
-        agent_table = pd.DataFrame({"编号": list(AGENT_NAMES), "交联剂": list(AGENT_NAMES.values())}).iloc[1:]
+        st.subheader("Available Cross-linking Agents")
+        agent_table = pd.DataFrame({"Code": list(AGENT_NAMES), "Cross-linking agent": list(AGENT_NAMES.values())}).iloc[1:]
         st.dataframe(agent_table, hide_index=True, use_container_width=True)
 
     with form_col:
-        st.subheader("预测参数")
+        st.subheader("Prediction Inputs")
         # 这里不能使用 st.form：材料状态变化时需要立即刷新下级选项。
         with st.container():
             material_col, condition_col = st.columns(2, gap="large")
             with material_col:
-                st.markdown("**材料信息**")
+                st.markdown("**Material Information**")
                 modified = st.selectbox(
-                    "是否改性", [0, 1], key="modified",
-                    format_func=lambda x: "0 · 未改性" if x == 0 else "1 · 改性",
+                    "Modification status", [0, 1], key="modified",
+                    format_func=lambda x: "0 · Unmodified" if x == 0 else "1 · Modified",
                     on_change=reset_widgets, args=("material_type", "crosslinked", "agent_type"),
                 )
                 if modified == 0:
                     material_type = "0"
-                    st.text_input("改性材料类型", "0 · 未改性（自动设定）", key="material_disabled", disabled=True)
+                    st.text_input("Modifier type", "0 · Unmodified (set automatically)", key="material_disabled", disabled=True)
                     profiles_after_material = profiles.loc[profiles["modified"].eq(0) & profiles["material_type"].eq("0")]
                 else:
                     material_options = sort_codes(profiles.loc[
                         profiles["modified"].eq(1) & profiles["material_type"].ne("0"), "material_type"
                     ].unique())
                     material_type = st.selectbox(
-                        "改性材料类型", material_options, key="material_type", format_func=material_label,
+                        "Modifier type", material_options, key="material_type", format_func=material_label,
                         on_change=reset_widgets, args=("crosslinked", "agent_type"),
                     )
                     profiles_after_material = profiles.loc[
@@ -149,29 +149,29 @@ def main():
                     ]
 
                 crosslinked = st.selectbox(
-                    "是否交联", sorted(profiles_after_material["crosslinked"].unique()), key="crosslinked",
-                    format_func=lambda x: "0 · 未交联" if x == 0 else "1 · 交联",
+                    "Cross-linking status", sorted(profiles_after_material["crosslinked"].unique()), key="crosslinked",
+                    format_func=lambda x: "0 · Uncross-linked" if x == 0 else "1 · Cross-linked",
                     on_change=reset_widgets, args=("agent_type",),
                 )
                 if crosslinked == 0:
                     crosslink_agent_type = "0"
-                    st.text_input("交联剂类型", "0 · 无交联剂（自动设定）", key="agent_disabled", disabled=True)
+                    st.text_input("Cross-linking agent type", "0 · None (set automatically)", key="agent_disabled", disabled=True)
                 else:
                     agent_options = sort_codes(profiles_after_material.loc[
                         profiles_after_material["crosslinked"].eq(1) & profiles_after_material["agent_type"].ne("0"), "agent_type"
                     ].unique())
-                    crosslink_agent_type = st.selectbox("交联剂类型", agent_options, key="agent_type", format_func=agent_label)
+                    crosslink_agent_type = st.selectbox("Cross-linking agent type", agent_options, key="agent_type", format_func=agent_label)
 
             with condition_col:
-                st.markdown("**反应与材料参数**")
-                adsorbent_dosage = st.number_input("吸附剂投加量 (g/L)", 0.04, 50.0, float(defaults["Adsorbent dosage (g/L) "]), 0.1)
-                reactor_temp = st.number_input("反应温度 (°C)", 4.0, 60.0, float(defaults["Reactor temperature (℃)"]), 1.0)
-                initial_p = st.number_input("初始 P 浓度 (mg/L)", 0.1, 500.0, min(float(defaults["Initial P concentration (mg/L)"]), 500.0), 1.0)
-                reaction_time = st.number_input("反应时间 (min)", 0.0, 2880.0, float(defaults["Reaction time (min)"]), 10.0)
-                solution_ph = st.number_input("溶液 pH", 1.0, 12.0, float(defaults["Solution pH"]), 0.1)
-                pore_volume = st.number_input("孔体积 (cm³/g)", 0.0085, 9.223, float(defaults["Pore volume (cm³/g)"]), 0.01, format="%.4f")
-                bet_area = st.number_input("BET 比表面积 (m²/g)", 0.056, 147.97, float(defaults["BET surface area (m²/g)"]), 1.0)
-            predict_clicked = st.button("预测 P 吸附容量", type="primary", use_container_width=True)
+                st.markdown("**Reaction Conditions and Material Properties**")
+                adsorbent_dosage = st.number_input("Adsorbent dosage (g/L)", 0.04, 50.0, float(defaults["Adsorbent dosage (g/L) "]), 0.1)
+                reactor_temp = st.number_input("Reaction temperature (°C)", 4.0, 60.0, float(defaults["Reactor temperature (℃)"]), 1.0)
+                initial_p = st.number_input("Initial P concentration (mg/L)", 0.1, 500.0, min(float(defaults["Initial P concentration (mg/L)"]), 500.0), 1.0)
+                reaction_time = st.number_input("Reaction time (min)", 0.0, 2880.0, float(defaults["Reaction time (min)"]), 10.0)
+                solution_ph = st.number_input("Solution pH", 1.0, 12.0, float(defaults["Solution pH"]), 0.1)
+                pore_volume = st.number_input("Pore volume (cm³/g)", 0.0085, 9.223, float(defaults["Pore volume (cm³/g)"]), 0.01, format="%.4f")
+                bet_area = st.number_input("BET surface area (m²/g)", 0.056, 147.97, float(defaults["BET surface area (m²/g)"]), 1.0)
+            predict_clicked = st.button("Predict P Adsorption Capacity", type="primary", use_container_width=True)
 
         values = {
             "Modified or unmodified": modified, "Cross-linked or uncross-linked": crosslinked,
@@ -198,15 +198,15 @@ def main():
             upper_bound = prediction + half_width
             st.divider()
             result_col, interval_col = st.columns(2)
-            result_col.metric("预测 P 吸附容量", f"{prediction:.2f} mg/g")
-            interval_col.metric("95% 预测区间", f"{lower_bound:.2f}–{upper_bound:.2f} mg/g")
+            result_col.metric("Predicted P adsorption capacity", f"{prediction:.2f} mg/g")
+            interval_col.metric("95% prediction interval", f"{lower_bound:.2f}–{upper_bound:.2f} mg/g")
             if profile_n <= 10:
-                st.warning(f"该材料/交联组合在训练数据中仅有 {profile_n} 条记录，结果仅宜用于探索性筛选。")
+                st.warning(f"This material/cross-linking combination has only {profile_n} training records. Results should be used for exploratory screening only.")
             if nearest_distance > support_limit:
-                st.warning("当前连续变量组合偏离训练数据适用范围，预测区间可能低估真实不确定性。")
+                st.warning("The current combination of continuous inputs lies outside the typical training-data support. The prediction interval may underestimate uncertainty.")
 
-        with st.expander("模型说明"):
-            st.write("预测模型为 CatBoost 回归模型；95% 预测区间由独立校准集计算。初始 P 浓度的网页输入范围为 0.1–500 mg/L。")
+        with st.expander("Model Information"):
+            st.write("Predictions are generated by a CatBoost regression model. The 95% conformal prediction interval is calibrated using a separate calibration set. Initial P concentration can range from 0.1 to 500 mg/L. P denotes elemental phosphorus; concentrations and adsorption capacities are reported on a P mass basis. Negative interval lower bounds are displayed as 0 mg/g without changing the original model output or calibration.")
 
     st.divider()
     st.caption("P adsorption capacity prediction platform | Research use only")
